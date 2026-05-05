@@ -1,0 +1,113 @@
+package com.dung.ddmoney.network
+
+import com.dung.ddmoney.network.dto.*
+import retrofit2.Response
+import retrofit2.http.*
+
+interface ApiService {
+
+    // ─── Auth ─────────────────────────────────────────────────────────
+
+    @POST("api/auth/login")
+    suspend fun login(@Body req: AuthRequest): AuthResponse
+
+    @POST("api/auth/register")
+    suspend fun register(@Body req: RegisterRequest): Map<String, String>
+
+    // ─── Users ────────────────────────────────────────────────────────
+
+    @GET("api/users/me")
+    suspend fun getCurrentUser(): UserResponse
+
+    @PUT("api/users/avatar")
+    suspend fun updateAvatar(@Body req: AvatarUpdateRequest): UserResponse
+
+    // ─── Wallets ──────────────────────────────────────────────────────
+
+    @GET("api/wallets")
+    suspend fun getWallets(): List<WalletResponse>
+
+    @GET("api/wallets/{id}")
+    suspend fun getWalletById(@Path("id") id: Long): WalletResponse
+
+    @GET("api/wallets/total-balance")
+    suspend fun getTotalBalance(): Map<String, Double>
+
+    @POST("api/wallets")
+    suspend fun createWallet(@Body req: WalletRequest): WalletResponse
+
+    @PUT("api/wallets/{id}")
+    suspend fun updateWallet(@Path("id") id: Long, @Body req: WalletRequest): WalletResponse
+
+    @DELETE("api/wallets/{id}")
+    suspend fun deleteWallet(@Path("id") id: Long): Response<Void>
+
+    @POST("api/wallets/transfer")
+    suspend fun transfer(@Body req: TransferRequest): Map<String, String>
+
+    // ─── Categories ───────────────────────────────────────────────────
+
+    @GET("api/categories")
+    suspend fun getCategories(): List<CategoryResponse>
+
+    @GET("api/categories/expense")
+    suspend fun getExpenseCategories(): List<CategoryResponse>
+
+    @GET("api/categories/income")
+    suspend fun getIncomeCategories(): List<CategoryResponse>
+
+    @GET("api/categories/debt")
+    suspend fun getDebtCategories(): List<CategoryResponse>
+
+    @GET("api/categories/{id}")
+    suspend fun getCategoryById(@Path("id") id: Long): CategoryResponse
+
+    @POST("api/categories")
+    suspend fun createCategory(@Body req: CategoryRequest): CategoryResponse
+
+    @PUT("api/categories/{id}")
+    suspend fun updateCategory(@Path("id") id: Long, @Body req: CategoryRequest): CategoryResponse
+
+    @DELETE("api/categories/{id}")
+    suspend fun deleteCategory(@Path("id") id: Long): Response<Void>
+
+    // ─── Transactions ─────────────────────────────────────────────────
+
+    @GET("api/transactions")
+    suspend fun getTransactions(
+        @Query("month") month: Int? = null,
+        @Query("year") year: Int? = null
+    ): List<TransactionResponse>
+
+    @GET("api/transactions/{id}")
+    suspend fun getTransactionById(@Path("id") id: Long): TransactionResponse
+
+    @GET("api/transactions/summary")
+    suspend fun getTransactionSummary(
+        @Query("month") month: Int,
+        @Query("year") year: Int
+    ): TransactionSummary
+
+    @GET("api/transactions/monthly-chart")
+    suspend fun getMonthlyChart(
+        @Query("months") months: Int = 4
+    ): List<MonthlyChart>
+
+    @GET("api/transactions/category-spending")
+    suspend fun getCategorySpending(
+        @Query("month") month: Int,
+        @Query("year") year: Int
+    ): List<CategorySpending>
+
+    @POST("api/transactions")
+    suspend fun createTransaction(@Body req: TransactionRequest): TransactionResponse
+
+    @PUT("api/transactions/{id}")
+    suspend fun updateTransaction(
+        @Path("id") id: Long,
+        @Body req: TransactionRequest
+    ): TransactionResponse
+
+    @DELETE("api/transactions/{id}")
+    suspend fun deleteTransaction(@Path("id") id: Long): Response<Void>
+}

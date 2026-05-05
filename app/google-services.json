@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "342763730939",
+    "project_id": "ddmoney-d5e0d",
+    "storage_bucket": "ddmoney-d5e0d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:342763730939:android:4cbacc2f01612bef7dbd5e",
+        "android_client_info": {
+          "package_name": "com.dung.ddmoney"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB_HqdSj8jJNDze5p_2622ufLeXgtI9qqo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
