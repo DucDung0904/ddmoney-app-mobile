@@ -45,6 +45,7 @@ val IncomeGreen = Color(0xFF008950) // Refined for light theme
 val ExpenseRed = LuminousError
 val SavingsBlue = LuminousPrimary
 val InvestmentYellow = Color(0xFF922400) // Using Tertiary
+val WarningYellow = Color(0xFFF57F17)
 
 // Category colors
 val CategoryFood = Color(0xFFBA1A1A)

@@ -46,8 +46,10 @@ object Routes {
     const val BUDGET   = "budget"
     const val ACCOUNT  = "account"   // Cài đặt (Settings)
     const val WALLETS  = "wallets"   // Quản lý ví (from settings)
+    const val CATEGORIES = "categories" // Quản lý danh mục
     const val TRANSFER = "transfer"
     const val ADD_TRANSACTION = "add_transaction"
+    const val ADD_BUDGET = "add_budget"
 
     fun addTransaction(type: String = "EXPENSE") = "add_transaction?type=$type"
 }
@@ -176,18 +178,33 @@ fun NavGraph(viewModel: AppViewModel) {
             }
 
             composable(Routes.STATS) {
+                com.dung.ddmoney.ui.analytics.AnalyticsScreen()
+            }
+
+            // ── Quản lý Danh mục ──────────────────────────────────────
+            composable(Routes.CATEGORIES) {
                 CategoriesScreen(
                     appState = appState,
                     onAddCategory = { name, icon, color, type -> viewModel.addCategory(name, icon, color, type) },
                     onEditCategory = { viewModel.editCategory(it) },
                     onDeleteCategory = { viewModel.deleteCategory(it) },
-                    onBack = { navController.navigate(Routes.HOME) { popUpTo(Routes.HOME) { inclusive = true } } }
+                    onBack = { navController.popBackStack() }
                 )
             }
 
             // ── Ngân sách ─────────────────────────────────────────────
             composable(Routes.BUDGET) {
-                BudgetScreen(appState = appState)
+                com.dung.ddmoney.ui.budget.BudgetScreen(
+                    appState = appState,
+                    onAddBudgetClick = { navController.navigate(Routes.ADD_BUDGET) }
+                )
+            }
+
+            composable(Routes.ADD_BUDGET) {
+                com.dung.ddmoney.ui.budget.AddBudgetScreen(
+                    appState = appState,
+                    onBack = { navController.popBackStack() }
+                )
             }
 
             // ── Cài đặt → SettingsScreen ──────────────────────────────

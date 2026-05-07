@@ -113,3 +113,26 @@ data class CategorySpending(
 // ─── Generic API Message ─────────────────────────────────────────────
 
 data class ApiMessage(val message: String)
+
+// ─── Budget DTOs ──────────────────────────────────────────────────────
+
+data class BudgetResponse(
+    val id: Long,
+    val categoryId: Long,
+    val categoryName: String,
+    val categoryIcon: String,
+    val categoryColor: String?,
+    val budgetAmount: Double,
+    val spentAmount: Double,
+    val remainingAmount: Double,
+    val percentage: Float,
+    val month: Int,
+    val year: Int
+)
+
+data class BudgetRequest(
+    val categoryId: Long,
+    val amount: Double,
+    val month: Int,
+    val year: Int
+)

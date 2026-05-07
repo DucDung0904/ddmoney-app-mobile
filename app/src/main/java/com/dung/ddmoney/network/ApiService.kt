@@ -82,18 +82,18 @@ interface ApiService {
     @GET("api/transactions/{id}")
     suspend fun getTransactionById(@Path("id") id: Long): TransactionResponse
 
-    @GET("api/transactions/summary")
+    @GET("api/analytics/summary")
     suspend fun getTransactionSummary(
         @Query("month") month: Int,
         @Query("year") year: Int
     ): TransactionSummary
 
-    @GET("api/transactions/monthly-chart")
+    @GET("api/analytics/monthly-chart")
     suspend fun getMonthlyChart(
         @Query("months") months: Int = 4
     ): List<MonthlyChart>
 
-    @GET("api/transactions/category-spending")
+    @GET("api/analytics/category-spending")
     suspend fun getCategorySpending(
         @Query("month") month: Int,
         @Query("year") year: Int
@@ -110,4 +110,21 @@ interface ApiService {
 
     @DELETE("api/transactions/{id}")
     suspend fun deleteTransaction(@Path("id") id: Long): Response<Void>
+
+    // ─── Budgets ──────────────────────────────────────────────────────
+
+    @GET("api/budgets")
+    suspend fun getBudgets(
+        @Query("month") month: Int? = null,
+        @Query("year") year: Int? = null
+    ): List<BudgetResponse>
+
+    @POST("api/budgets")
+    suspend fun createBudget(@Body req: BudgetRequest): BudgetResponse
+
+    @PUT("api/budgets/{id}")
+    suspend fun updateBudget(@Path("id") id: Long, @Body req: BudgetRequest): BudgetResponse
+
+    @DELETE("api/budgets/{id}")
+    suspend fun deleteBudget(@Path("id") id: Long): Response<Void>
 }

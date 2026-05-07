@@ -297,6 +297,15 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // ── Transaction ───────────────────────────────────────────────────
+    fun deleteTransaction(transactionId: String) {
+        viewModelScope.launch {
+            transactionRepo.delete(transactionId)
+                .onFailure { e ->
+                    _error.value = "Lỗi xóa giao dịch: ${e.message}"
+                }
+        }
+    }
+
     fun addTransaction(
         title: String,
         categoryId: String,

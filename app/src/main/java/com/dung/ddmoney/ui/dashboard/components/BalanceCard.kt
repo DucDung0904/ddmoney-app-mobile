@@ -30,7 +30,7 @@ fun formatCurrency(amount: Double): String {
     val formatted =
             NumberFormat.getNumberInstance(Locale.forLanguageTag("vi-VN"))
                     .format(Math.abs(amount.toLong()))
-    return "${formatted}đ"
+    return if (amount < 0) "-${formatted}đ" else "${formatted}đ"
 }
 
 fun formatCurrencyVND(amount: Double): String {

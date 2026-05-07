@@ -2,6 +2,7 @@ package com.dung.ddmoney.ui.dashboard.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -28,6 +29,7 @@ import com.dung.ddmoney.ui.theme.*
 fun TransactionSection(
     transactions: List<Transaction>,
     onSeeAll: () -> Unit = {},
+    onDeleteTransaction: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier) {
@@ -97,7 +99,10 @@ fun TransactionSection(
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 transactions.forEachIndexed { index, transaction ->
-                    TransactionItem(transaction = transaction)
+                    TransactionItem(
+                        transaction = transaction,
+                        onDelete = { onDeleteTransaction?.invoke(transaction.id) }
+                    )
                     if (index < transactions.lastIndex) {
                         HorizontalDivider(
                             modifier = Modifier.padding(horizontal = 20.dp),
@@ -114,10 +119,12 @@ fun TransactionSection(
 }
 
 // ─── Single Transaction Item (Activity Feed style) ────────────────────
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun TransactionItem(
     transaction: Transaction,
     onClick: (() -> Unit)? = null,
+    onDelete: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.1f
@@ -134,10 +141,36 @@ fun TransactionItem(
         TransactionType.DEBT     -> ""
     }
 
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    if (showDeleteDialog && onDelete != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Xóa giao dịch") },
+            text = { Text("Bạn có chắc chắn muốn xóa giao dịch này không?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteDialog = false
+                    onDelete()
+                }) { Text("Xóa", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) { Text("Hủy") }
+            }
+        )
+    }
+
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .then(
+                if (onClick != null || onDelete != null) {
+                    Modifier.combinedClickable(
+                        onClick = { onClick?.invoke() },
+                        onLongClick = { if (onDelete != null) showDeleteDialog = true }
+                    )
+                } else Modifier
+            )
             .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

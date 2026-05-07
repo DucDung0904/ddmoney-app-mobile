@@ -39,6 +39,7 @@ import java.util.Locale
 fun DashboardScreen(
         appState: AppState,
         navController: NavController,
+        viewModel: com.dung.ddmoney.AppViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
         modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
@@ -242,7 +243,8 @@ fun DashboardScreen(
                 Spacer(modifier = Modifier.height(12.dp))
                 TransactionSection(
                         transactions = dashboardState.recentTransactions,
-                        onSeeAll = { navController.navigate(Routes.STATS) }
+                        onSeeAll = { navController.navigate(Routes.STATS) },
+                        onDeleteTransaction = { id -> viewModel.deleteTransaction(id) }
                 )
                 Spacer(modifier = Modifier.height(8.dp))
             }
