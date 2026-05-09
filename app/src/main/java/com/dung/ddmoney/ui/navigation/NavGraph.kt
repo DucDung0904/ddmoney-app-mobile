@@ -23,7 +23,9 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.dung.ddmoney.AppViewModel
 import com.dung.ddmoney.ui.auth.LoginScreen
+import com.dung.ddmoney.ui.auth.OnboardingScreen
 import com.dung.ddmoney.ui.auth.RegisterScreen
+import com.dung.ddmoney.ui.auth.WelcomeScreen
 import com.dung.ddmoney.ui.budget.BudgetScreen
 import com.dung.ddmoney.ui.categories.CategoriesScreen
 import com.dung.ddmoney.ui.dashboard.DashboardScreen
@@ -38,8 +40,10 @@ import com.dung.ddmoney.network.dto.RegisterRequest
 
 object Routes {
     // ── Auth ──────────────────────────────────────────────────────────
-    const val LOGIN    = "login"
-    const val REGISTER = "register"
+    const val WELCOME     = "welcome"
+    const val LOGIN       = "login"
+    const val REGISTER    = "register"
+    const val ONBOARDING  = "onboarding"
     // ── Main ──────────────────────────────────────────────────────────
     const val HOME     = "home"
     const val STATS    = "stats"
@@ -72,8 +76,15 @@ fun NavGraph(viewModel: AppViewModel) {
     val navController = rememberNavController()
     val appState by viewModel.state.collectAsState()
     val isLoggedIn by viewModel.isLoggedIn.collectAsState()
+    val isOnboardingDone by viewModel.isOnboardingDone.collectAsState()
     val authLoading by viewModel.authLoading.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    val startDestination = when {
+        !isLoggedIn -> Routes.WELCOME
+        !isOnboardingDone -> Routes.ONBOARDING
+        else -> Routes.HOME
+    }
 
     // Show error messages from API calls
     LaunchedEffect(appState.error) {
@@ -134,7 +145,7 @@ fun NavGraph(viewModel: AppViewModel) {
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = if (isLoggedIn) Routes.HOME else Routes.LOGIN,
+            startDestination = startDestination,
             modifier = Modifier.padding(innerPadding),
             enterTransition = { EnterTransition.None },
             exitTransition = { ExitTransition.None },
@@ -142,16 +153,28 @@ fun NavGraph(viewModel: AppViewModel) {
             popExitTransition = { ExitTransition.None }
         ) {
             // ── Auth ───────────────────────────────────────────────────
+            // ── Welcome (landing) ──────────────────────────────────────
+            composable(Routes.WELCOME) {
+                WelcomeScreen(
+                    onSignUpClick = { navController.navigate(Routes.REGISTER) },
+                    onLoginClick  = { navController.navigate(Routes.LOGIN) },
+                    onGoogleSignIn = { /* TODO: Firebase Google Sign-In */ }
+                )
+            }
+
             composable(Routes.LOGIN) {
                 LoginScreen(
                     onLoginClick = { email, password ->
                         viewModel.login(AuthRequest(email, password)) {
-                            navController.navigate(Routes.HOME) {
-                                popUpTo(Routes.LOGIN) { inclusive = true }
+                            val dest = if (viewModel.isOnboardingDone.value) Routes.HOME else Routes.ONBOARDING
+                            navController.navigate(dest) {
+                                popUpTo(Routes.WELCOME) { inclusive = true }
                             }
                         }
                     },
                     onNavigateToRegister = { navController.navigate(Routes.REGISTER) },
+                    onGoogleSignIn = { /* TODO: Firebase Google Sign-In */ },
+                    onBack = { navController.popBackStack() },
                     isLoading = authLoading,
                     errorMessage = appState.error
                 )
@@ -161,14 +184,35 @@ fun NavGraph(viewModel: AppViewModel) {
                 RegisterScreen(
                     onRegisterClick = { fullName, email, password ->
                         viewModel.register(RegisterRequest(fullName, email, password)) {
-                            navController.navigate(Routes.LOGIN) {
+                            // After register → always go to onboarding
+                            navController.navigate(Routes.ONBOARDING) {
                                 popUpTo(Routes.REGISTER) { inclusive = true }
                             }
                         }
                     },
-                    onNavigateToLogin = { navController.popBackStack() },
+                    onNavigateToLogin = {
+                        navController.navigate(Routes.LOGIN) {
+                            popUpTo(Routes.WELCOME)
+                        }
+                    },
+                    onBack = { navController.popBackStack() },
+                    onGoogleSignIn = { /* TODO: Firebase Google Sign-In */ },
                     isLoading = authLoading,
                     errorMessage = appState.error
+                )
+            }
+
+            composable(Routes.ONBOARDING) {
+                OnboardingScreen(
+                    userName = appState.userInfo.name,
+                    isLoading = appState.isLoading,
+                    onComplete = { currency, walletName, walletBalance ->
+                        viewModel.completeOnboarding(currency, walletName, walletBalance)
+                        viewModel.syncAll()
+                        navController.navigate(Routes.HOME) {
+                            popUpTo(Routes.ONBOARDING) { inclusive = true }
+                        }
+                    }
                 )
             }
 

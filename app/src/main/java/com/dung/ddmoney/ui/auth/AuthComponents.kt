@@ -40,6 +40,7 @@ fun DDMoneyInputField(
         onTrailingLabelClick: (() -> Unit)? = null,
         isError: Boolean = false,
         errorText: String? = null,
+        showLabel: Boolean = true,
         keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
         keyboardActions: KeyboardActions = KeyboardActions.Default,
         modifier: Modifier = Modifier
@@ -65,27 +66,29 @@ fun DDMoneyInputField(
                     label = "bg"
             )
 
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(if (showLabel) 6.dp else 0.dp)) {
         // Label row
-        Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                    label,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = if (isError) Color(0xFFBA1A1A) else Color(0xFF434656)
-            )
-            trailingLabel?.let {
+        if (showLabel) {
+            Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
-                        it,
+                        label,
                         fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF003CC7),
-                        modifier = Modifier.clickable { onTrailingLabelClick?.invoke() }
+                        fontWeight = FontWeight.Medium,
+                        color = if (isError) Color(0xFFBA1A1A) else Color(0xFF434656)
                 )
+                trailingLabel?.let {
+                    Text(
+                            it,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF003CC7),
+                            modifier = Modifier.clickable { onTrailingLabelClick?.invoke() }
+                    )
+                }
             }
         }
 

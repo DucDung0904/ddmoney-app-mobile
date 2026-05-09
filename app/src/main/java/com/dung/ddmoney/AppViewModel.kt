@@ -134,9 +134,38 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val _isDarkMode = MutableStateFlow(tokenManager.isDarkMode())
     val isDarkMode: StateFlow<Boolean> = _isDarkMode.asStateFlow()
 
+    private val _isOnboardingDone = MutableStateFlow(tokenManager.isOnboardingDone())
+    val isOnboardingDone: StateFlow<Boolean> = _isOnboardingDone.asStateFlow()
+
+    private val _currency = MutableStateFlow(tokenManager.getCurrency())
+    val currency: StateFlow<String> = _currency.asStateFlow()
+
     fun setDarkMode(isDark: Boolean) {
         tokenManager.setDarkMode(isDark)
         _isDarkMode.value = isDark
+    }
+
+    fun completeOnboarding(
+        currency: String,
+        walletName: String,
+        walletBalance: Double
+    ) {
+        tokenManager.setCurrency(currency)
+        tokenManager.setOnboardingDone(true)
+        _currency.value = currency
+        _isOnboardingDone.value = true
+        // Create the first wallet via API
+        viewModelScope.launch {
+            val req = WalletRequest(
+                name = walletName,
+                balance = walletBalance,
+                type = "CASH",
+                bankName = null,
+                colorHex = "#003CC7"
+            )
+            walletRepo.create(req)
+                .onFailure { e -> _error.value = "Không thể tạo ví: ${e.message}" }
+        }
     }
 
     /**

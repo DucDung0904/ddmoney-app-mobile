@@ -38,8 +38,24 @@ class TokenManager(context: Context) {
             .remove(KEY_USER_NAME)
             .remove(KEY_USER_EMAIL)
             .remove(KEY_USER_AVATAR)
+            .remove(KEY_ONBOARDING_DONE)
+            .remove(KEY_CURRENCY)
             .apply()
     }
+
+    // ── Onboarding ──────────────────────────────────────────────────
+    fun setOnboardingDone(done: Boolean) {
+        prefs.edit().putBoolean(KEY_ONBOARDING_DONE, done).apply()
+    }
+
+    fun isOnboardingDone(): Boolean = prefs.getBoolean(KEY_ONBOARDING_DONE, false)
+
+    // ── Currency ────────────────────────────────────────────────────
+    fun setCurrency(currency: String) {
+        prefs.edit().putString(KEY_CURRENCY, currency).apply()
+    }
+
+    fun getCurrency(): String = prefs.getString(KEY_CURRENCY, "VND") ?: "VND"
 
     fun saveUserId(userId: Long) {
         prefs.edit().putLong(KEY_USER_ID, userId).apply()
@@ -78,5 +94,7 @@ class TokenManager(context: Context) {
         private const val KEY_USER_EMAIL = "user_email"
         private const val KEY_USER_AVATAR = "user_avatar"
         private const val KEY_DARK_MODE = "dark_mode"
+        private const val KEY_ONBOARDING_DONE = "onboarding_done"
+        private const val KEY_CURRENCY = "currency"
     }
 }
