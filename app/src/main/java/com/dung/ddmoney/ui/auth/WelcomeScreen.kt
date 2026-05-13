@@ -4,6 +4,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -27,11 +28,7 @@ fun WelcomeScreen(
         onLoginClick: () -> Unit,
         onGoogleSignIn: () -> Unit = {}
 ) {
-    var visible by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        delay(100)
-        visible = true
-    }
+
 
     Box(
             modifier =
@@ -96,14 +93,12 @@ fun WelcomeScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // ── Illustration (Top) ──────────────────────────────────────────────
-            AnimatedVisibility(visible = visible, enter = fadeIn(tween(800))) {
                 Image(
                         painter = painterResource(id = R.drawable.logo_login),
                         contentDescription = "Finance Illustration",
                         modifier = Modifier.fillMaxWidth().padding(top = 16.dp).scale(1.2f),
                         contentScale = ContentScale.FillWidth
                 )
-            }
 
             Spacer(modifier = Modifier.weight(1f))
 
@@ -115,62 +110,52 @@ fun WelcomeScreen(
                                     .padding(bottom = 48.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                AnimatedVisibility(
-                        visible = visible,
-                        enter = fadeIn(tween(800, 200)) // Slight delay for the text
-                ) {
-                    Text(
-                            text = "Chào mừng đến với DDMoney",
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 26.sp,
-                            color = Color(0xFF181C20),
-                            letterSpacing = (-0.5).sp
-                    )
-                }
+                Text(
+                        text = "Chào mừng đến với DDMoney",
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 26.sp,
+                        color = Color(0xFF181C20),
+                        letterSpacing = (-0.5).sp
+                )
 
                 Spacer(modifier = Modifier.height(40.dp))
 
-                AnimatedVisibility(
-                        visible = visible,
-                        enter = fadeIn(tween(800, 400)) // Delay for the buttons
+                Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
+
+                    // Log In Button (filled)
+                    Button(
+                            onClick = onLoginClick,
+                            modifier = Modifier.fillMaxWidth().height(56.dp),
+                            shape = CircleShape,
+                            colors =
+                                    ButtonDefaults.buttonColors(
+                                            containerColor = Color(0xFF4060FB)
+                                    )
                     ) {
+                        Text(
+                                text = "Đăng nhập",
+                                color = Color.White,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 16.sp
+                        )
+                    }
 
-                        // Log In Button (filled)
-                        Button(
-                                onClick = onLoginClick,
-                                modifier = Modifier.fillMaxWidth().height(56.dp),
-                                shape = RoundedCornerShape(50.dp),
-                                colors =
-                                        ButtonDefaults.buttonColors(
-                                                containerColor = Color(0xFF4060FB)
-                                        )
-                        ) {
-                            Text(
-                                    text = "Đăng nhập",
-                                    color = Color.White,
-                                    fontWeight = FontWeight.SemiBold,
-                                    fontSize = 16.sp
-                            )
-                        }
-
-                        // Sign Up Button (outlined)
-                        OutlinedButton(
-                                onClick = onSignUpClick,
-                                modifier = Modifier.fillMaxWidth().height(56.dp),
-                                shape = RoundedCornerShape(50.dp),
-                                border = BorderStroke(2.dp, Color(0xFF4060FB))
-                        ) {
-                            Text(
-                                    text = "Đăng ký",
-                                    color = Color(0xFF4060FB),
-                                    fontWeight = FontWeight.SemiBold,
-                                    fontSize = 16.sp
-                            )
-                        }
+                    // Sign Up Button (outlined)
+                    OutlinedButton(
+                            onClick = onSignUpClick,
+                            modifier = Modifier.fillMaxWidth().height(56.dp),
+                            shape = CircleShape,
+                            border = BorderStroke(2.dp, Color(0xFF4060FB))
+                    ) {
+                        Text(
+                                text = "Đăng ký",
+                                color = Color(0xFF4060FB),
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 16.sp
+                        )
                     }
                 }
             }

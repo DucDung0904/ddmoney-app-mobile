@@ -12,7 +12,8 @@ data class WalletResponse(
     val bankName: String?,
     val cardNumber: String?,
     val colorHex: String?,
-    val isActive: Boolean?
+    val isActive: Boolean?,
+    val icon: String? = null    // key dùng để map sang ImageVector, e.g. "wallet", "savings"
 )
 
 data class WalletRequest(
@@ -21,7 +22,8 @@ data class WalletRequest(
     val type: String,           // "CASH" | "BANK" | "EWALLET" | "CREDIT"
     val bankName: String? = null,
     val cardNumber: String? = null,
-    val colorHex: String = "#4659A6"
+    val colorHex: String = "#4659A6",
+    val icon: String = "wallet" // key map sang ImageVector — xem WalletIconMap
 )
 
 data class TransferRequest(

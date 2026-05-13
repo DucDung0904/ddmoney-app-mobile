@@ -1,81 +1,79 @@
 package com.dung.ddmoney.ui.theme
 
 import android.app.Activity
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
-import androidx.compose.material3.darkColorScheme
 
 private val LuminousLightColorScheme = lightColorScheme(
-    primary = LuminousPrimary,
-    onPrimary = LuminousOnPrimary,
-    primaryContainer = LuminousPrimaryContainer,
+    primary          = LuminousPrimary,           // OceanBlue600 #185FA5
+    onPrimary        = LuminousOnPrimary,
+    primaryContainer = LuminousPrimaryContainer,  // OceanBlue400
     onPrimaryContainer = LuminousOnPrimaryContainer,
 
-    secondary = LuminousSecondary,
-    onSecondary = LuminousOnSecondary,
+    secondary          = LuminousSecondary,
+    onSecondary        = LuminousOnSecondary,
     secondaryContainer = LuminousSecondaryContainer,
     onSecondaryContainer = LuminousOnSecondaryContainer,
 
-    tertiary = LuminousTertiary,
-    onTertiary = LuminousOnTertiary,
+    tertiary          = LuminousTertiary,          // SavingsTeal600 #1D9E75
+    onTertiary        = LuminousOnTertiary,
     tertiaryContainer = LuminousTertiaryContainer,
     onTertiaryContainer = LuminousOnTertiaryContainer,
 
     background = LuminousBackground,
     onBackground = LuminousOnBackground,
 
-    surface = LuminousSurface,
-    onSurface = LuminousOnSurface,
-    surfaceVariant = LuminousSurfaceVariant,
-    onSurfaceVariant = LuminousOnSurfaceVariant,
+    surface          = LuminousSurface,
+    onSurface        = LuminousOnSurface,
+    surfaceVariant   = LuminousSurfaceVariant,
+    onSurfaceVariant = LuminousOnSurfaceVariant,   // NeutralGray600 #888780
 
-    error = LuminousError,
-    onError = LuminousOnError,
+    error          = LuminousError,                // ExpenseRed600 #E24B4A
+    onError        = LuminousOnError,
     errorContainer = LuminousErrorContainer,
     onErrorContainer = LuminousOnErrorContainer,
 
-    outline = LuminousOutline,
+    outline        = LuminousOutline,              // NeutralGray600
     outlineVariant = LuminousOutlineVariant,
 )
 
 private val DarkColorScheme = darkColorScheme(
-    primary = DarkPrimary,
-    onPrimary = DarkOnPrimary,
-    primaryContainer = DarkPrimaryContainer,
+    primary          = DarkPrimary,               // OceanBlue400
+    onPrimary        = DarkOnPrimary,
+    primaryContainer = DarkPrimaryContainer,      // OceanBlue800
     onPrimaryContainer = DarkOnPrimaryContainer,
 
-    secondary = DarkSecondary,
-    onSecondary = DarkOnSecondary,
+    secondary          = DarkSecondary,           // SavingsTeal400
+    onSecondary        = DarkOnSecondary,
     secondaryContainer = DarkSecondaryContainer,
     onSecondaryContainer = DarkOnSecondaryContainer,
 
-    tertiary = DarkTertiary,
-    onTertiary = DarkOnTertiary,
+    tertiary          = DarkTertiary,             // InvestAmber400
+    onTertiary        = DarkOnTertiary,
     tertiaryContainer = DarkTertiaryContainer,
     onTertiaryContainer = DarkOnTertiaryContainer,
 
     background = DarkBackground,
     onBackground = DarkOnBackground,
 
-    surface = DarkSurface,
-    onSurface = DarkOnSurface,
-    surfaceVariant = DarkSurfaceVariant,
+    surface          = DarkSurface,
+    onSurface        = DarkOnSurface,
+    surfaceVariant   = DarkSurfaceVariant,
     onSurfaceVariant = DarkOnSurfaceVariant,
 
-    error = DarkError,
-    onError = DarkOnError,
+    error          = DarkError,                   // ExpenseRed400
+    onError        = DarkOnError,
     errorContainer = DarkErrorContainer,
     onErrorContainer = DarkOnErrorContainer,
 
-    outline = DarkOutline,
+    outline        = DarkOutline,
     outlineVariant = DarkOutlineVariant,
 )
 
@@ -84,11 +82,7 @@ fun DDMoneyTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) {
-        DarkColorScheme
-    } else {
-        LuminousLightColorScheme
-    }
+    val colorScheme = if (darkTheme) DarkColorScheme else LuminousLightColorScheme
     val view = LocalView.current
 
     if (!view.isInEditMode) {
@@ -101,7 +95,7 @@ fun DDMoneyTheme(
 
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = Typography,
-        content = content
+        typography  = Typography,
+        content     = content
     )
 }

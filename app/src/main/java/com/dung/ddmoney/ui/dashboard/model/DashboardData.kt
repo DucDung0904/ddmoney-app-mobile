@@ -61,7 +61,8 @@ data class Wallet(
     val type: WalletType,
     val bank: String = "",
     val cardNumber: String = "",
-    val color: Color
+    val color: Color,
+    val icon: String = "wallet"
 )
 
 // ─── Monthly Summary ──────────────────────────────────────────────────
@@ -151,13 +152,13 @@ object SampleData {
             CategoryType.EXPENSE,
             true
         ),
-        Category(CategoryIds.EDUCATION, "Giáo dục", "📚", SavingsBlue, CategoryType.EXPENSE, true),
-        Category(CategoryIds.BILLS, "Hóa đơn", "💡", InvestmentYellow, CategoryType.EXPENSE, true),
+        Category(CategoryIds.EDUCATION, "Giáo dục", "📚", SavingsTeal600, CategoryType.EXPENSE, true),
+        Category(CategoryIds.BILLS, "Hóa đơn", "💡", InvestAmber600, CategoryType.EXPENSE, true),
         Category(CategoryIds.OTHER_EXPENSE, "Khác", "📦", CategoryOther, CategoryType.EXPENSE, true),
     )
 
     val defaultIncomeCategories = listOf(
-        Category(CategoryIds.SALARY, "Lương", "💰", IncomeGreen, CategoryType.INCOME, true),
+        Category(CategoryIds.SALARY, "Lương", "💰", IncomeGreen600, CategoryType.INCOME, true),
         Category(
             CategoryIds.FREELANCE,
             "Freelance",
@@ -170,7 +171,7 @@ object SampleData {
             CategoryIds.INVESTMENT,
             "Đầu tư",
             "📈",
-            InvestmentYellow,
+            InvestAmber600,
             CategoryType.INCOME,
             true
         ),
@@ -195,7 +196,7 @@ object SampleData {
     val defaultCategories = defaultExpenseCategories + defaultIncomeCategories + defaultDebtCategories
 
     val defaultWallets = listOf(
-        Wallet(WalletIds.CASH, "Tiền mặt", 2_500_000.0, WalletType.CASH, color = LuminousSecondary),
+        Wallet(WalletIds.CASH, "Tiền mặt", 2_500_000.0, WalletType.CASH, icon = "wallet", color = LuminousSecondary),
         Wallet(
             WalletIds.VIETCOMBANK,
             "Vietcombank",
@@ -203,9 +204,10 @@ object SampleData {
             WalletType.BANK,
             "Vietcombank",
             "**** 4829",
-            SavingsBlue
+            icon = "savings",
+            color = SavingsTeal600
         ),
-        Wallet(WalletIds.MOMO, "Ví MoMo", 280_000.0, WalletType.EWALLET, color = Color(0xFFD82D8B)),
+        Wallet(WalletIds.MOMO, "Ví MoMo", 280_000.0, WalletType.EWALLET, icon = "wallet", color = Color(0xFFD82D8B)),
     )
 
     val sampleTransactions = listOf(
@@ -218,7 +220,7 @@ object SampleData {
         ),
         Transaction(
             id = "t2", title = "Lương Tháng 4", categoryId = CategoryIds.SALARY,
-            categoryName = "Lương", categoryIcon = "💰", categoryColor = IncomeGreen,
+            categoryName = "Lương", categoryIcon = "💰", categoryColor = IncomeGreen600,
             amount = 28_000_000.0, type = TransactionType.INCOME,
             walletId = WalletIds.VIETCOMBANK, walletName = "Vietcombank",
             date = LocalDate.now()

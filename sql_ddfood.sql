@@ -87,22 +87,3 @@ CREATE TABLE IF NOT EXISTS budgets (
     UNIQUE KEY unique_budget (user_id, category_id, month, year)
 );
 
--- ==============================================================================
--- DỮ LIỆU MẪU (OPTIONAL)
--- ==============================================================================
-
--- Tạo user mẫu (Mật khẩu là '123456' đã được mã hóa BCrypt)
-INSERT IGNORE INTO users (id, email, username, password, full_name) VALUES 
-(1, 'demo@ddmoney.com', 'demo@ddmoney.com', '$2a$10$Dow.R8Yw/mN1GfP2I/eCxeC/A4e8I3uFWeO9S7F9.z5W0lF/P6TGu', 'Demo User');
-
--- Tạo danh mục mặc định (user_id = null)
-INSERT IGNORE INTO categories (id, name, icon, type, is_default) VALUES 
-(1, 'Lương', '💰', 'INCOME', TRUE),
-(2, 'Ăn uống', '🍔', 'EXPENSE', TRUE),
-(3, 'Đi lại', '🚗', 'EXPENSE', TRUE),
-(4, 'Mua sắm', '🛍️', 'EXPENSE', TRUE);
-
--- Tạo ví mẫu cho User 1
-INSERT IGNORE INTO wallets (id, user_id, name, balance, type) VALUES 
-(1, 1, 'Tiền mặt', 5000000, 'CASH'),
-(2, 1, 'Tài khoản Vietcombank', 15000000, 'BANK');

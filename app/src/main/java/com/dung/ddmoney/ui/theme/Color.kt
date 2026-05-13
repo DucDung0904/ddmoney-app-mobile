@@ -2,91 +2,161 @@ package com.dung.ddmoney.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Luminous Ether Light Mode Palette
-val LuminousBackground = Color(0xFFF7F9FF)
-val LuminousSurface = Color(0xFFF7F9FF)
+// ═══════════════════════════════════════════════════════════════════════════
+//  DDMoney Color System — "Ocean Blueprint"
+//  Primary: Ocean Blue (#185FA5)  •  Stop 600 = brand anchor
+//  Semantic: Green (income) · Red (expense) · Teal (savings) · Amber (invest)
+//  Neutral: Gray #888780 for secondary text, dividers, neutral icons
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ─── Ocean Blue — Primary / CTA / Header / Balance highlight ────────────────
+val OceanBlue50  = Color(0xFFE6F1FB)   // chip / badge background
+val OceanBlue100 = Color(0xFFB5D4F4)   // hover tint, subtle fill
+val OceanBlue400 = Color(0xFF378ADD)   // icon accent, underline
+val OceanBlue600 = Color(0xFF185FA5)   // ★ brand anchor — buttons, CTA, border
+val OceanBlue800 = Color(0xFF0C447C)   // header text, pressed state, badge text
+
+// ─── Income Green — always "positive" ───────────────────────────────────────
+val IncomeGreen50  = Color(0xFFEDF5DB)  // chip background
+val IncomeGreen100 = Color(0xFFCDE69D)  // progress bar tint
+val IncomeGreen400 = Color(0xFF82BB44)  // icon, sparkline
+val IncomeGreen600 = Color(0xFF639922)  // ★ anchor — income amount, badge border
+val IncomeGreen800 = Color(0xFF3D5E14)  // dark badge text
+
+// ─── Expense Red — spending / warning ───────────────────────────────────────
+val ExpenseRed50  = Color(0xFFFCECEC)   // chip background
+val ExpenseRed100 = Color(0xFFF5BABA)   // light fill
+val ExpenseRed400 = Color(0xFFEB7070)   // icon, soft alert
+val ExpenseRed600 = Color(0xFFE24B4A)   // ★ anchor — expense amount, warning
+val ExpenseRed800 = Color(0xFF8E1F1F)   // dark badge text
+
+// ─── Savings Teal — calm, wealth-building ───────────────────────────────────
+val SavingsTeal50  = Color(0xFFDFF5EE)  // chip background
+val SavingsTeal100 = Color(0xFFA6E4D0)  // progress bar tint
+val SavingsTeal400 = Color(0xFF3DBFA0)  // icon accent
+val SavingsTeal600 = Color(0xFF1D9E75)  // ★ anchor — savings label, badge border
+val SavingsTeal800 = Color(0xFF0F5C43)  // dark badge text
+
+// ─── Investment Amber — standout, never conflicts ────────────────────────────
+val InvestAmber50  = Color(0xFFFEF4E0)  // chip background
+val InvestAmber100 = Color(0xFFFCDDA0)  // light fill
+val InvestAmber400 = Color(0xFFF3BC56)  // icon accent, sparkline
+val InvestAmber600 = Color(0xFFEF9F27)  // ★ anchor — investment label
+val InvestAmber800 = Color(0xFF8A5606)  // dark badge text
+
+// ─── Neutral Gray — secondary text, dividers, neutral icons ─────────────────
+val NeutralGray50  = Color(0xFFF2F2F0)
+val NeutralGray100 = Color(0xFFDEDDD9)
+val NeutralGray400 = Color(0xFFAAAB9C) // Note: adjusted slightly warmer than #888780 for 400
+val NeutralGray600 = Color(0xFF888780)  // ★ anchor — secondary text, dividers, neutral icons
+val NeutralGray800 = Color(0xFF3E3D38)
+
+// ─── Surface & Background (Light Mode — Luminous Architect) ─────────────────
+val LuminousBackground            = Color(0xFFF7F9FF)
+val LuminousSurface               = Color(0xFFF7F9FF)
 val LuminousSurfaceContainerLowest = Color(0xFFFFFFFF)
-val LuminousSurfaceContainerLow = Color(0xFFF1F3F9)
-val LuminousSurfaceContainer = Color(0xFFECEEF4)
-val LuminousSurfaceContainerHigh = Color(0xFFE6E8EE)
+val LuminousSurfaceContainerLow   = Color(0xFFF1F3F9)
+val LuminousSurfaceContainer      = Color(0xFFECEEF4)
+val LuminousSurfaceContainerHigh  = Color(0xFFE6E8EE)
 val LuminousSurfaceContainerHighest = Color(0xFFE0E2E8)
-val LuminousSurfaceVariant = Color(0xFFE0E2E8)
-val LuminousInverseSurface = Color(0xFF2D3135)
-val LuminousOutline = Color(0xFF737688)
-val LuminousOutlineVariant = Color(0xFFC3C5D9)
+val LuminousSurfaceVariant        = Color(0xFFE0E2E8)
+val LuminousInverseSurface        = Color(0xFF2D3135)
+val LuminousOutline               = NeutralGray600      // reuse neutral anchor
+val LuminousOutlineVariant        = NeutralGray100
 
-val LuminousPrimary = Color(0xFF003CC7)
-val LuminousPrimaryContainer = Color(0xFF0D51FB)
-val LuminousOnPrimary = Color(0xFFFFFFFF)
-val LuminousOnPrimaryContainer = Color(0xFFDDE1FF)
+// ─── Material Role Mapping (Light) ──────────────────────────────────────────
+val LuminousPrimary               = OceanBlue600        // #185FA5
+val LuminousPrimaryContainer      = OceanBlue400        // #378ADD — gradient end
+val LuminousOnPrimary             = Color(0xFFFFFFFF)
+val LuminousOnPrimaryContainer    = OceanBlue50         // #E6F1FB
 
-val LuminousSecondary = Color(0xFF4659A6)
-val LuminousSecondaryContainer = Color(0xFF99ACFF)
-val LuminousOnSecondary = Color(0xFFFFFFFF)
-val LuminousOnSecondaryContainer = Color(0xFF293D89)
+val LuminousSecondary             = OceanBlue400
+val LuminousSecondaryContainer    = OceanBlue100
+val LuminousOnSecondary           = Color(0xFFFFFFFF)
+val LuminousOnSecondaryContainer  = OceanBlue800
 
-val LuminousTertiary = Color(0xFF922400)
-val LuminousTertiaryContainer = Color(0xFFBC3100)
-val LuminousOnTertiary = Color(0xFFFFFFFF)
-val LuminousOnTertiaryContainer = Color(0xFFFFDBD1)
+val LuminousTertiary              = SavingsTeal600      // #1D9E75
+val LuminousTertiaryContainer     = SavingsTeal100
+val LuminousOnTertiary            = Color(0xFFFFFFFF)
+val LuminousOnTertiaryContainer   = SavingsTeal800
 
-val LuminousError = Color(0xFFBA1A1A)
-val LuminousErrorContainer = Color(0xFFFFDAD6)
-val LuminousOnError = Color(0xFFFFFFFF)
-val LuminousOnErrorContainer = Color(0xFF93000A)
+val LuminousError                 = ExpenseRed600       // #E24B4A
+val LuminousErrorContainer        = ExpenseRed50
+val LuminousOnError               = Color(0xFFFFFFFF)
+val LuminousOnErrorContainer      = ExpenseRed800
 
-val LuminousOnBackground = Color(0xFF181C20)
-val LuminousOnSurface = Color(0xFF181C20)
-val LuminousOnSurfaceVariant = Color(0xFF434656)
-val LuminousInverseOnSurface = Color(0xFFEFF1F7)
+val LuminousOnBackground          = Color(0xFF181C20)
+val LuminousOnSurface             = Color(0xFF181C20)
+val LuminousOnSurfaceVariant      = NeutralGray600      // #888780
+val LuminousInverseOnSurface      = Color(0xFFEFF1F7)
 
-// Semantic colors
-val IncomeGreen = Color(0xFF008950) // Refined for light theme
-val ExpenseRed = LuminousError
-val SavingsBlue = LuminousPrimary
-val InvestmentYellow = Color(0xFF922400) // Using Tertiary
-val WarningYellow = Color(0xFFF57F17)
+// ─── Ocean Blue Nav Palette (BottomNavBar) ───────────────────────────────────
+val OceanNavActive   = OceanBlue600    // active icon / label
+val OceanNavPill     = OceanBlue100    // active pill background tint
+val OceanNavSurface  = OceanBlue50    // nav bar background wash
+val OceanNavInactive = NeutralGray600  // inactive icon / label
 
-// Category colors
-val CategoryFood = Color(0xFFBA1A1A)
-val CategoryTransport = Color(0xFF003CC7)
-val CategoryShopping = Color(0xFF4659A6)
-val CategoryHealth = Color(0xFF008950)
-val CategoryEntertainment = Color(0xFFBC3100)
-val CategoryOther = Color(0xFF434656)
+// ─── Category Chip / Badge tokens ───────────────────────────────────────────
+// Usage: chipBg = *50, chipText = *800, chipBorder = *600
+// Income
+val ChipIncomeBg     = IncomeGreen50
+val ChipIncomeText   = IncomeGreen800
+val ChipIncomeBorder = IncomeGreen600
+// Expense
+val ChipExpenseBg     = ExpenseRed50
+val ChipExpenseText   = ExpenseRed800
+val ChipExpenseBorder = ExpenseRed600
+// Savings
+val ChipSavingsBg     = SavingsTeal50
+val ChipSavingsText   = SavingsTeal800
+val ChipSavingsBorder = SavingsTeal600
+// Investment
+val ChipInvestBg     = InvestAmber50
+val ChipInvestText   = InvestAmber800
+val ChipInvestBorder = InvestAmber600
 
-// Dark Theme Colors — lighter, more readable version
-val DarkPrimary = Color(0xFF6B9FFF)           // Bright cornflower blue
-val DarkOnPrimary = Color(0xFFFFFFFF)
-val DarkPrimaryContainer = Color(0xFF2B4F8E)  // Medium blue
-val DarkOnPrimaryContainer = Color(0xFFD0E4FF)
+// ─── Category icon/progress colors (convenience aliases) ────────────────────
+val CategoryFood          = ExpenseRed600
+val CategoryTransport     = OceanBlue600
+val CategoryShopping      = InvestAmber600
+val CategoryHealth        = IncomeGreen600
+val CategoryEntertainment = InvestAmber400
+val CategorySavings       = SavingsTeal600
+val CategoryOther         = NeutralGray600
 
-val DarkSecondary = Color(0xFF8FB8FF)
-val DarkOnSecondary = Color(0xFF0D1E3A)
-val DarkSecondaryContainer = Color(0xFF243A5E)
-val DarkOnSecondaryContainer = Color(0xFFD8EAFF)
+// ─── Dark Theme ─────────────────────────────────────────────────────────────
+val DarkBackground        = Color(0xFF111820)   // deep navy-black
+val DarkSurface           = Color(0xFF192130)   // card surface
+val DarkSurfaceVariant    = Color(0xFF1F2C40)   // inner card / chip
+val DarkOnBackground      = Color(0xFFEDF2FF)
+val DarkOnSurface         = Color(0xFFEDF2FF)
+val DarkOnSurfaceVariant  = Color(0xFFB0BFDB)
 
-val DarkTertiary = Color(0xFFB0BEC5)
-val DarkOnTertiary = Color(0xFF0D1E3A)
-val DarkTertiaryContainer = Color(0xFF2C3A4A)
-val DarkOnTertiaryContainer = Color(0xFFDDE9F4)
+val DarkPrimary           = OceanBlue400        // #378ADD — readable on dark
+val DarkOnPrimary         = Color(0xFFFFFFFF)
+val DarkPrimaryContainer  = OceanBlue800        // #0C447C
+val DarkOnPrimaryContainer = OceanBlue50        // #E6F1FB
 
-val DarkBackground = Color(0xFF131C2E)        // Readable dark navy (not pitch black)
-val DarkOnBackground = Color(0xFFF0F4FF)      // Bright white-blue text
+val DarkSecondary         = SavingsTeal400
+val DarkOnSecondary       = Color(0xFF001A12)
+val DarkSecondaryContainer = SavingsTeal800
+val DarkOnSecondaryContainer = SavingsTeal50
 
-val DarkSurface = Color(0xFF1C2A42)           // Lighter navy card
-val DarkOnSurface = Color(0xFFF0F4FF)
-val DarkSurfaceVariant = Color(0xFF243450)    // Even lighter, for inner cards
-val DarkOnSurfaceVariant = Color(0xFFB0BFDB) // Readable secondary text
+val DarkTertiary          = InvestAmber400
+val DarkOnTertiary        = Color(0xFF1A0E00)
+val DarkTertiaryContainer = InvestAmber800
+val DarkOnTertiaryContainer = InvestAmber50
 
-val DarkOutline = Color(0xFF3D5275)
-val DarkOutlineVariant = Color(0xFF2A3D5C)
+val DarkError             = ExpenseRed400       // softer on dark
+val DarkOnError           = Color(0xFFFFFFFF)
+val DarkErrorContainer    = ExpenseRed800
+val DarkOnErrorContainer  = ExpenseRed50
 
-val DarkError = Color(0xFFFF6B6B)
-val DarkOnError = Color(0xFFFFFFFF)
-val DarkErrorContainer = Color(0xFF7A1E2E)
-val DarkOnErrorContainer = Color(0xFFFFD4D4)
+val DarkOutline           = Color(0xFF3D5275)
+val DarkOutlineVariant    = Color(0xFF2A3D5C)
 
-// Dark semantic colors
-val DarkIncomeGreen = Color(0xFF4DD9A0)       // Bright mint green
-val DarkExpenseRed  = Color(0xFFFF6B6B)       // Readable soft red
+// Dark semantic convenience
+val DarkIncomeGreen = IncomeGreen400   // #82BB44
+val DarkExpenseRed  = ExpenseRed400    // #EB7070
+val DarkSavingsTeal = SavingsTeal400   // #3DBFA0
+val DarkInvestAmber = InvestAmber400   // #F3BC56

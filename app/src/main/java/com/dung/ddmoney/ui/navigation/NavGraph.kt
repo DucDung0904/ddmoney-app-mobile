@@ -1,321 +1,234 @@
 package com.dung.ddmoney.ui.navigation
 
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.FabPosition
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Snackbar
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.animation.*
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.navigation.NavType
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.*
 import com.dung.ddmoney.AppViewModel
-import com.dung.ddmoney.ui.auth.LoginScreen
-import com.dung.ddmoney.ui.auth.OnboardingScreen
-import com.dung.ddmoney.ui.auth.RegisterScreen
-import com.dung.ddmoney.ui.auth.WelcomeScreen
-import com.dung.ddmoney.ui.budget.BudgetScreen
-import com.dung.ddmoney.ui.categories.CategoriesScreen
-import com.dung.ddmoney.ui.dashboard.DashboardScreen
-import com.dung.ddmoney.ui.dashboard.components.BottomNavBar
-import com.dung.ddmoney.ui.dashboard.components.AddTransactionFab
-import com.dung.ddmoney.ui.settings.SettingsScreen
-import com.dung.ddmoney.ui.transactions.AddTransactionScreen
-import com.dung.ddmoney.ui.wallets.TransferScreen
-import com.dung.ddmoney.ui.wallets.WalletsScreen
 import com.dung.ddmoney.network.dto.AuthRequest
 import com.dung.ddmoney.network.dto.RegisterRequest
+import com.dung.ddmoney.ui.auth.*
+import com.dung.ddmoney.ui.home.HomeScreen
+import com.dung.ddmoney.ui.wallets.WalletListScreen
 
-object Routes {
-    // ── Auth ──────────────────────────────────────────────────────────
-    const val WELCOME     = "welcome"
-    const val LOGIN       = "login"
-    const val REGISTER    = "register"
-    const val ONBOARDING  = "onboarding"
-    // ── Main ──────────────────────────────────────────────────────────
-    const val HOME     = "home"
-    const val STATS    = "stats"
-    const val BUDGET   = "budget"
-    const val ACCOUNT  = "account"   // Cài đặt (Settings)
-    const val WALLETS  = "wallets"   // Quản lý ví (from settings)
-    const val CATEGORIES = "categories" // Quản lý danh mục
-    const val TRANSFER = "transfer"
-    const val ADD_TRANSACTION = "add_transaction"
-    const val ADD_BUDGET = "add_budget"
-
-    fun addTransaction(type: String = "EXPENSE") = "add_transaction?type=$type"
-}
-
-// Routes hiển thị Bottom Nav Bar
-private val mainRoutes = setOf(Routes.HOME, Routes.STATS, Routes.BUDGET, Routes.ACCOUNT)
-
-// Map route hiện tại → nav item được highlight
-private fun currentNavItem(route: String?): String = when {
-    route == null -> "home"
-    route.startsWith(Routes.ADD_TRANSACTION) -> "home"
-    route == Routes.STATS -> "stats"
-    route == Routes.BUDGET -> "budget"
-    route == Routes.ACCOUNT || route == Routes.WALLETS -> "account"
-    else -> "home"
-}
+// Định nghĩa hiệu ứng Micro-interaction chung
+private val duration = 400
+private val microInteractionEasing = FastOutSlowInEasing
 
 @Composable
-fun NavGraph(viewModel: AppViewModel) {
-    val navController = rememberNavController()
-    val appState by viewModel.state.collectAsState()
-    val isLoggedIn by viewModel.isLoggedIn.collectAsState()
-    val isOnboardingDone by viewModel.isOnboardingDone.collectAsState()
+fun NavGraph(
+    navController: NavHostController,
+    viewModel: AppViewModel,
+    startDestination: String = Routes.WELCOME
+) {
     val authLoading by viewModel.authLoading.collectAsState()
-    val snackbarHostState = remember { SnackbarHostState() }
+    val appState by viewModel.state.collectAsState()
 
-    val startDestination = when {
-        !isLoggedIn -> Routes.WELCOME
-        !isOnboardingDone -> Routes.ONBOARDING
-        else -> Routes.HOME
-    }
-
-    // Show error messages from API calls
-    LaunchedEffect(appState.error) {
-        appState.error?.let { msg ->
-            snackbarHostState.showSnackbar(
-                message = msg,
-                actionLabel = "Retry",
-                duration = SnackbarDuration.Long
-            )
-            viewModel.clearError()
+    NavHost(
+        navController = navController,
+        startDestination = startDestination,
+        enterTransition = {
+            fadeIn(animationSpec = tween(duration, easing = microInteractionEasing)) +
+            scaleIn(initialScale = 0.95f, animationSpec = tween(duration, easing = microInteractionEasing))
+        },
+        exitTransition = {
+            fadeOut(animationSpec = tween(duration, easing = microInteractionEasing)) +
+            scaleOut(targetScale = 0.95f, animationSpec = tween(duration, easing = microInteractionEasing))
+        },
+        popEnterTransition = {
+            fadeIn(animationSpec = tween(duration, easing = microInteractionEasing)) +
+            scaleIn(initialScale = 0.95f, animationSpec = tween(duration, easing = microInteractionEasing))
+        },
+        popExitTransition = {
+            fadeOut(animationSpec = tween(duration, easing = microInteractionEasing)) +
+            scaleOut(targetScale = 0.95f, animationSpec = tween(duration, easing = microInteractionEasing))
         }
-    }
-
-    val currentBackStack by navController.currentBackStackEntryAsState()
-    val currentRoute = currentBackStack?.destination?.route
-    val showBottomBar = mainRoutes.any { currentRoute == it }
-
-    Scaffold(
-        snackbarHost = {
-            SnackbarHost(snackbarHostState) { data ->
-                Snackbar(
-                    snackbarData = data,
-                    actionOnNewLine = false
-                )
-            }
-        },
-        bottomBar = {
-            if (showBottomBar) {
-                BottomNavBar(
-                    selectedRoute = currentNavItem(currentRoute),
-                    onItemSelected = { route ->
-                        when (route) {
-                            "home" -> navController.navigate(Routes.HOME) {
-                                popUpTo(Routes.HOME) { inclusive = true }
-                            }
-                            "stats" -> navController.navigate(Routes.STATS) {
-                                popUpTo(Routes.HOME); launchSingleTop = true
-                            }
-                            "budget" -> navController.navigate(Routes.BUDGET) {
-                                popUpTo(Routes.HOME); launchSingleTop = true
-                            }
-                            "account" -> navController.navigate(Routes.ACCOUNT) {
-                                popUpTo(Routes.HOME); launchSingleTop = true
-                            }
-                        }
-                    }
-                )
-            }
-        },
-        floatingActionButton = {
-            if (showBottomBar) {
-                AddTransactionFab(
-                    onClick = { navController.navigate(Routes.addTransaction("EXPENSE")) }
-                )
-            }
-        },
-        floatingActionButtonPosition = FabPosition.End
-    ) { innerPadding ->
-        NavHost(
-            navController = navController,
-            startDestination = startDestination,
-            modifier = Modifier.padding(innerPadding),
-            enterTransition = { EnterTransition.None },
-            exitTransition = { ExitTransition.None },
-            popEnterTransition = { EnterTransition.None },
-            popExitTransition = { ExitTransition.None }
-        ) {
-            // ── Auth ───────────────────────────────────────────────────
-            // ── Welcome (landing) ──────────────────────────────────────
-            composable(Routes.WELCOME) {
-                WelcomeScreen(
-                    onSignUpClick = { navController.navigate(Routes.REGISTER) },
-                    onLoginClick  = { navController.navigate(Routes.LOGIN) },
-                    onGoogleSignIn = { /* TODO: Firebase Google Sign-In */ }
-                )
-            }
-
-            composable(Routes.LOGIN) {
-                LoginScreen(
-                    onLoginClick = { email, password ->
-                        viewModel.login(AuthRequest(email, password)) {
-                            val dest = if (viewModel.isOnboardingDone.value) Routes.HOME else Routes.ONBOARDING
-                            navController.navigate(dest) {
+    ) {
+        // --- AUTH FLOW ---
+        composable(Routes.WELCOME) {
+            WelcomeScreen(
+                onLoginClick = { navController.navigate(Routes.LOGIN) },
+                onSignUpClick = { navController.navigate(Routes.REGISTER) }
+            )
+        }
+        composable(Routes.LOGIN) {
+            LoginScreen(
+                onLoginClick = { email, password ->
+                    viewModel.login(AuthRequest(email, password)) { isNewUser ->
+                        if (isNewUser) {
+                            navController.navigate(Routes.ONBOARDING)
+                        } else {
+                            navController.navigate(Routes.MAIN) {
                                 popUpTo(Routes.WELCOME) { inclusive = true }
                             }
                         }
-                    },
-                    onNavigateToRegister = { navController.navigate(Routes.REGISTER) },
-                    onGoogleSignIn = { /* TODO: Firebase Google Sign-In */ },
-                    onBack = { navController.popBackStack() },
-                    isLoading = authLoading,
-                    errorMessage = appState.error
-                )
-            }
-
-            composable(Routes.REGISTER) {
-                RegisterScreen(
-                    onRegisterClick = { fullName, email, password ->
-                        viewModel.register(RegisterRequest(fullName, email, password)) {
-                            // After register → always go to onboarding
-                            navController.navigate(Routes.ONBOARDING) {
-                                popUpTo(Routes.REGISTER) { inclusive = true }
-                            }
-                        }
-                    },
-                    onNavigateToLogin = {
-                        navController.navigate(Routes.LOGIN) {
-                            popUpTo(Routes.WELCOME)
-                        }
-                    },
-                    onBack = { navController.popBackStack() },
-                    onGoogleSignIn = { /* TODO: Firebase Google Sign-In */ },
-                    isLoading = authLoading,
-                    errorMessage = appState.error
-                )
-            }
-
-            composable(Routes.ONBOARDING) {
-                OnboardingScreen(
-                    userName = appState.userInfo.name,
-                    isLoading = appState.isLoading,
-                    onComplete = { currency, walletName, walletBalance ->
-                        viewModel.completeOnboarding(currency, walletName, walletBalance)
-                        viewModel.syncAll()
-                        navController.navigate(Routes.HOME) {
-                            popUpTo(Routes.ONBOARDING) { inclusive = true }
-                        }
                     }
-                )
-            }
-
-            // ── Tổng quan ─────────────────────────────────────────────
-            composable(Routes.HOME) {
-                DashboardScreen(appState = appState, navController = navController)
-            }
-
-            composable(Routes.STATS) {
-                com.dung.ddmoney.ui.analytics.AnalyticsScreen()
-            }
-
-            // ── Quản lý Danh mục ──────────────────────────────────────
-            composable(Routes.CATEGORIES) {
-                CategoriesScreen(
-                    appState = appState,
-                    onAddCategory = { name, icon, color, type -> viewModel.addCategory(name, icon, color, type) },
-                    onEditCategory = { viewModel.editCategory(it) },
-                    onDeleteCategory = { viewModel.deleteCategory(it) },
-                    onBack = { navController.popBackStack() }
-                )
-            }
-
-            // ── Ngân sách ─────────────────────────────────────────────
-            composable(Routes.BUDGET) {
-                com.dung.ddmoney.ui.budget.BudgetScreen(
-                    appState = appState,
-                    onAddBudgetClick = { navController.navigate(Routes.ADD_BUDGET) }
-                )
-            }
-
-            composable(Routes.ADD_BUDGET) {
-                com.dung.ddmoney.ui.budget.AddBudgetScreen(
-                    appState = appState,
-                    onBack = { navController.popBackStack() }
-                )
-            }
-
-            // ── Cài đặt → SettingsScreen ──────────────────────────────
-            composable(Routes.ACCOUNT) {
-                val isDarkMode by viewModel.isDarkMode.collectAsState()
-                SettingsScreen(
-                    appState = appState,
-                    isDarkMode = isDarkMode,
-                    onDarkModeToggle = { viewModel.setDarkMode(it) },
-                    onManageWallets = { navController.navigate(Routes.WALLETS) },
-                    onLogout = {
-                        viewModel.logout()
-                        navController.navigate(Routes.LOGIN) {
-                            popUpTo(Routes.HOME) { inclusive = true }
-                        }
-                    },
-                    onUpdateAvatar = { url -> viewModel.updateAvatar(url) }
-                )
-            }
-
-            // ── Quản lý ví (từ Cài đặt, không có bottom nav) ─────────
-            composable(Routes.WALLETS) {
-                WalletsScreen(
-                    appState = appState,
-                    onAddWallet = { name, balance, type, bank, color -> viewModel.addWallet(name, balance, type, bank, color) },
-                    onEditWallet = { viewModel.editWallet(it) },
-                    onDeleteWallet = { viewModel.deleteWallet(it) },
-                    onTransfer = { navController.navigate(Routes.TRANSFER) },
-                    onBack = { navController.popBackStack() }
-                )
-            }
-
-            // ── Chuyển tiền (không có bottom nav) ────────────────────
-            composable(Routes.TRANSFER) {
-                TransferScreen(
-                    appState = appState,
-                    onTransfer = { fromId, toId, amount, date, note ->
-                        viewModel.transfer(fromId, toId, amount, date, note)
-                        navController.popBackStack()
-                    },
-                    onBack = { navController.popBackStack() }
-                )
-            }
-
-            // ── Thêm giao dịch (không có bottom nav) ─────────────────
-            composable(
-                route = "${Routes.ADD_TRANSACTION}?type={type}",
-                arguments = listOf(navArgument("type") {
-                    type = NavType.StringType
-                    defaultValue = "EXPENSE"
-                })
-            ) { backStackEntry ->
-                val type = backStackEntry.arguments?.getString("type") ?: "EXPENSE"
-                AddTransactionScreen(
-                    initialType = type,
-                    appState = appState,
-                    onSave = { title, categoryId, amount, transactionType, walletId, date, note ->
-                        viewModel.addTransaction(title, categoryId, amount, transactionType, walletId, date, note)
-                        val popped = navController.popBackStack()
-                        if (!popped) navController.navigate(Routes.HOME) { popUpTo(Routes.HOME) { inclusive = true } }
-                    },
-                    onBack = {
-                        val popped = navController.popBackStack()
-                        if (!popped) navController.navigate(Routes.HOME) { popUpTo(Routes.HOME) { inclusive = true } }
+                },
+                onNavigateToRegister = { navController.navigate(Routes.REGISTER) },
+                onBack = { navController.popBackStack() },
+                isLoading = authLoading,
+                errorMessage = appState.error
+            )
+        }
+        composable(Routes.REGISTER) {
+            RegisterScreen(
+                onRegisterClick = { fullName, email, password ->
+                    viewModel.register(RegisterRequest(fullName, email, password)) {
+                        navController.navigate(Routes.LOGIN)
                     }
-                )
-            }
+                },
+                onNavigateToLogin = { navController.navigate(Routes.LOGIN) },
+                onBack = { navController.popBackStack() },
+                isLoading = authLoading,
+                errorMessage = appState.error
+            )
+        }
+        composable(Routes.ONBOARDING) {
+            OnboardingScreen(
+                userName = appState.userInfo.name,
+                isLoading = appState.isLoading,
+                onComplete = { currency, walletName, walletBalance, walletIcon, walletType ->
+                    viewModel.completeOnboarding(currency, walletName, walletBalance, walletIcon, walletType)
+                    navController.navigate(Routes.MAIN) {
+                        popUpTo(0) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+            )
+        }
+
+        // --- MAIN APP FLOW (WITH BOTTOM NAV) ---
+        composable(Routes.MAIN) {
+            MainContainer(viewModel)
         }
     }
+}
+
+@Composable
+fun MainContainer(viewModel: AppViewModel) {
+    val navController = rememberNavController()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    
+    // Sử dụng route gốc để thanh điều hướng không highlight nhầm tab khi ở màn hình con
+    val rawRoute = navBackStackEntry?.destination?.route
+    val currentRoute = rawRoute ?: NavItem.Home.route
+    
+    val state by viewModel.state.collectAsState()
+
+    Scaffold(
+        containerColor = Color.Transparent, 
+        bottomBar = {
+            BottomNavBar(
+                currentRoute = currentRoute,
+                onNavigate = { route ->
+                    // Nếu nhấn vào Tab Trang chủ khi đang ở màn hình con (wallet_list), quay lại thay vì navigate
+                    if (route == NavItem.Home.route && rawRoute == "wallet_list") {
+                        navController.popBackStack()
+                    } else {
+                        navController.navigate(route) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                },
+                onAddClick = { /* Show Add Transaction Bottom Sheet */ }
+            )
+        }
+    ) { paddingValues ->
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Nội dung chính
+            Box(modifier = Modifier
+                .fillMaxSize()
+                .padding(top = paddingValues.calculateTopPadding())
+            ) {
+                NavHost(
+                    navController = navController,
+                    startDestination = NavItem.Home.route,
+                    modifier = Modifier.fillMaxSize(),
+                    enterTransition = {
+                        fadeIn(animationSpec = tween(duration, easing = microInteractionEasing)) +
+                        scaleIn(initialScale = 0.95f, animationSpec = tween(duration, easing = microInteractionEasing))
+                    },
+                    exitTransition = {
+                        fadeOut(animationSpec = tween(duration, easing = microInteractionEasing)) +
+                        scaleOut(targetScale = 0.95f, animationSpec = tween(duration, easing = microInteractionEasing))
+                    },
+                    popEnterTransition = {
+                        fadeIn(animationSpec = tween(duration, easing = microInteractionEasing)) +
+                        scaleIn(initialScale = 0.95f, animationSpec = tween(duration, easing = microInteractionEasing))
+                    },
+                    popExitTransition = {
+                        fadeOut(animationSpec = tween(duration, easing = microInteractionEasing)) +
+                        scaleOut(targetScale = 0.95f, animationSpec = tween(duration, easing = microInteractionEasing))
+                    }
+                ) {
+                    composable(NavItem.Home.route) {
+                        HomeScreen(
+                            userName = state.userInfo.name,
+                            totalBalance = state.wallets.sumOf { it.balance },
+                            wallets = state.wallets,
+                            recentTransactions = state.transactions.take(10),
+                            onSeeAllWallets = { navController.navigate("wallet_list") }
+                        )
+                    }
+                    composable("wallet_list") {
+                        WalletListScreen(
+                            wallets = state.wallets,
+                            onBack = { navController.popBackStack() },
+                            onAddWallet = { /* Navigate to Add Wallet */ },
+                            onWalletClick = { /* Navigate to Wallet Details */ }
+                        )
+                    }
+                    composable(NavItem.Budget.route) { PlaceholderScreen("Ngân sách") }
+                    composable(NavItem.Analytics.route) { PlaceholderScreen("Phân tích") }
+                    composable(NavItem.Profile.route) { PlaceholderScreen("Cá nhân") }
+                }
+            }
+
+            // Lớp phủ mờ (Fog Effect) ở đáy màn hình
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(140.dp) 
+                    .align(Alignment.BottomCenter)
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color(0xFFE9EEF7).copy(alpha = 0.5f),
+                                Color(0xFFE9EEF7).copy(alpha = 0.95f)
+                            )
+                        )
+                    )
+            )
+        }
+    }
+}
+
+@Composable
+fun PlaceholderScreen(name: String) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Text(text = "Màn hình $name đang phát triển", fontSize = 18.sp, color = Color.Gray)
+    }
+}
+
+object Routes {
+    const val WELCOME = "welcome"
+    const val LOGIN = "login"
+    const val REGISTER = "register"
+    const val ONBOARDING = "onboarding"
+    const val MAIN = "main"
 }

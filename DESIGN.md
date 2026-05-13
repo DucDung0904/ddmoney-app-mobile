@@ -7,22 +7,53 @@ To break the "standard" look, this system utilizes **Intentional Asymmetry** and
 
 ---
 
-## 2. Colors & Surface Philosophy
-The palette is rooted in a pristine white base, layered with soft, cool grays to define function without the friction of borders.
+## 2. Colors & Surface Philosophy — "Ocean Blueprint"
+
+The palette is anchored by **Ocean Blue (#185FA5)** as the singular brand identity, with four distinct semantic hues that are perceptually separated so they never compete.
+
+### Color Strategy: Full Palette
+Each hue plays an exclusive role. No hue is reassigned or reused across roles.
+
+| Token stop | Ocean Blue | Income Green | Expense Red | Savings Teal | Invest Amber | Neutral Gray |
+|---|---|---|---|---|---|---|
+| **50** | #E6F1FB | #EDF5DB | #FCECED | #DFF5EE | #FEF4E0 | #F2F2F0 |
+| **100** | #B5D4F4 | #CDE69D | #F5BABA | #A6E4D0 | #FCDDA0 | #DEDDD9 |
+| **400** | #378ADD | #82BB44 | #EB7070 | #3DBFA0 | #F3BC56 | #AAAB9C |
+| **600 ★** | **#185FA5** | **#639922** | **#E24B4A** | **#1D9E75** | **#EF9F27** | **#888780** |
+| **800** | #0C447C | #3D5E14 | #8E1F1F | #0F5C43 | #8A5606 | #3E3D38 |
+
+★ = brand anchor stop — use for buttons, borders, and amount text.
+
+### Semantic Role Rules
+- **Ocean Blue (#185FA5):** Header, CTA buttons, balance highlight, active nav, primary brand.
+- **Income Green (#639922):** Income amounts, positive transactions — always "positive."
+- **Expense Red (#E24B4A):** Expense amounts, alerts, warnings — natural "caution" signal.
+- **Savings Teal (#1D9E75):** Savings labels and progress — calm, wealth-building feel.
+- **Investment Amber (#EF9F27):** Investment highlights — stands out without conflicting.
+- **Neutral Gray (#888780):** Secondary text, dividers, neutral icons — never semantic.
+
+### Chip / Badge Composition Rule
+```
+bg    = *50   (very light, readable on white)
+text  = *800  (high contrast)
+border = *600 (anchor — same as button color)
+```
+
+### Button & Border Emphasis
+Use **stop 600** for interactive borders and primary buttons. Gradient CTAs: `OceanBlue600` → `OceanBlue400` at 135°.
 
 ### The "No-Line" Rule
-**Explicit Instruction:** Traditional 1px solid borders for sectioning are strictly prohibited. Structural boundaries must be defined solely through background color shifts or tonal transitions.
-*   **Example:** A `surface-container-low` (#F1F3F9) sidebar sitting against a `background` (#F7F9FF) main content area.
+Traditional 1px solid borders for sectioning are strictly prohibited. Structural boundaries must be defined solely through background color shifts or tonal transitions.
+*   **Example:** A `surface-container-low` (#F1F3F9) sidebar against a `background` (#F7F9FF) main area.
 
 ### Surface Hierarchy & Nesting
-Treat the UI as a series of stacked, fine paper sheets. Depth is created by nesting containers:
 *   **Background (#F7F9FF):** The foundational canvas.
-*   **Surface Container Lowest (#FFFFFF):** Used for primary content cards or "hero" modules to make them pop forward.
-*   **Surface Container High (#E6E8EE):** Used for utility bars or secondary interactive zones.
+*   **Surface Container Lowest (#FFFFFF):** Primary content cards.
+*   **Surface Container High (#E6E8EE):** Utility bars or secondary zones.
 
 ### The "Glass & Gradient" Rule
-To inject visual "soul," use **Glassmorphism** for floating elements (e.g., navigation overlays). Apply a semi-transparent `surface` color with a `20px` backdrop-blur. 
-*   **Signature Textures:** Main CTAs should utilize a subtle linear gradient from `primary` (#003CC7) to `primary_container` (#0D51FB) at a 135-degree angle. This provides a tactile, luminous quality that flat color lacks.
+Glassmorphism for floating nav overlays: semi-transparent surface + `20px` backdrop-blur.
+Signature CTA gradient: `OceanBlue600` (#185FA5) → `OceanBlue400` (#378ADD) at 135°.
 
 ---
 
@@ -80,51 +111,57 @@ Inspired by the provided reference, the navigation should be a floating "pill" u
 *   **Don't** use sharp corners. Every interactive element must use at least the `DEFAULT` (0.5rem) roundedness to feel approachable and modern.
 *   **Don't** use shadows to solve hierarchy problems that can be solved with background color shifts.
 
-## Color Palette Tokens (Hex)
-- background: #f7f9ff
-- error: #ba1a1a
-- error_container: #ffdad6
-- inverse_on_surface: #eff1f7
-- inverse_primary: #b7c4ff
-- inverse_surface: #2d3135
-- on_background: #181c20
-- on_error: #ffffff
-- on_error_container: #93000a
-- on_primary: #ffffff
-- on_primary_container: #dde1ff
-- on_primary_fixed: #001453
-- on_primary_fixed_variant: #0037b8
-- on_secondary: #ffffff
-- on_secondary_container: #293d89
-- on_secondary_fixed: #001453
-- on_secondary_fixed_variant: #2d418d
-- on_surface: #181c20
-- on_surface_variant: #434656
-- on_tertiary: #ffffff
-- on_tertiary_container: #ffdbd1
-- on_tertiary_fixed: #3b0900
-- on_tertiary_fixed_variant: #872100
-- outline: #737688
-- outline_variant: #c3c5d9
-- primary: #003cc7
-- primary_container: #0d51fb
-- primary_fixed: #dde1ff
-- primary_fixed_dim: #b7c4ff
-- secondary: #4659a6
-- secondary_container: #99acff
-- secondary_fixed: #dde1ff
-- secondary_fixed_dim: #b7c4ff
-- surface: #f7f9ff
-- surface_bright: #f7f9ff
-- surface_container: #eceef4
-- surface_container_high: #e6e8ee
-- surface_container_highest: #e0e2e8
-- surface_container_low: #f1f3f9
-- surface_container_lowest: #ffffff
-- surface_dim: #d8dae0
-- surface_tint: #004af0
-- surface_variant: #e0e2e8
-- tertiary: #922400
-- tertiary_container: #bc3100
-- tertiary_fixed: #ffdbd1
-- tertiary_fixed_dim: #ffb5a0
+## Color Palette Tokens (Hex) — Ocean Blueprint
+
+### Primary (Ocean Blue)
+- ocean_blue_50: #E6F1FB
+- ocean_blue_100: #B5D4F4
+- ocean_blue_400: #378ADD
+- ocean_blue_600: #185FA5  ← primary / CTA / header
+- ocean_blue_800: #0C447C
+
+### Semantic — Income (Green)
+- income_green_50: #EDF5DB
+- income_green_100: #CDE69D
+- income_green_400: #82BB44
+- income_green_600: #639922  ← income amount text
+- income_green_800: #3D5E14
+
+### Semantic — Expense (Red)
+- expense_red_50: #FCECED
+- expense_red_100: #F5BABA
+- expense_red_400: #EB7070
+- expense_red_600: #E24B4A  ← expense amount text / error
+- expense_red_800: #8E1F1F
+
+### Semantic — Savings (Teal)
+- savings_teal_50: #DFF5EE
+- savings_teal_100: #A6E4D0
+- savings_teal_400: #3DBFA0
+- savings_teal_600: #1D9E75  ← savings label
+- savings_teal_800: #0F5C43
+
+### Semantic — Investment (Amber)
+- invest_amber_50: #FEF4E0
+- invest_amber_100: #FCDDA0
+- invest_amber_400: #F3BC56
+- invest_amber_600: #EF9F27  ← investment label
+- invest_amber_800: #8A5606
+
+### Neutral Gray
+- neutral_gray_50: #F2F2F0
+- neutral_gray_100: #DEDDD9
+- neutral_gray_400: #AAAB9C
+- neutral_gray_600: #888780  ← secondary text / dividers / neutral icons
+- neutral_gray_800: #3E3D38
+
+### Surface & Background (unchanged)
+- background: #F7F9FF
+- surface: #F7F9FF
+- surface_container_lowest: #FFFFFF
+- surface_container_low: #F1F3F9
+- surface_container: #ECEEF4
+- surface_container_high: #E6E8EE
+- surface_container_highest: #E0E2E8
+- on_surface: #181C20
+- on_surface_variant: #888780  (NeutralGray600)
