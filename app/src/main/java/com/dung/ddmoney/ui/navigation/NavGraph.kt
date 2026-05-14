@@ -21,6 +21,7 @@ import com.dung.ddmoney.network.dto.AuthRequest
 import com.dung.ddmoney.network.dto.RegisterRequest
 import com.dung.ddmoney.ui.auth.*
 import com.dung.ddmoney.ui.home.HomeScreen
+import com.dung.ddmoney.ui.profile.ProfileScreen
 import com.dung.ddmoney.ui.wallets.WalletListScreen
 
 // Định nghĩa hiệu ứng Micro-interaction chung
@@ -111,13 +112,13 @@ fun NavGraph(
 
         // --- MAIN APP FLOW (WITH BOTTOM NAV) ---
         composable(Routes.MAIN) {
-            MainContainer(viewModel)
+            MainContainer(viewModel, navController)
         }
     }
 }
 
 @Composable
-fun MainContainer(viewModel: AppViewModel) {
+fun MainContainer(viewModel: AppViewModel, rootNavController: NavHostController) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     
@@ -126,8 +127,10 @@ fun MainContainer(viewModel: AppViewModel) {
     val currentRoute = rawRoute ?: NavItem.Home.route
     
     val state by viewModel.state.collectAsState()
+    var showAddTransaction by remember { mutableStateOf(false) }
 
-    Scaffold(
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
         containerColor = Color.Transparent, 
         bottomBar = {
             BottomNavBar(
@@ -144,7 +147,7 @@ fun MainContainer(viewModel: AppViewModel) {
                         }
                     }
                 },
-                onAddClick = { /* Show Add Transaction Bottom Sheet */ }
+                onAddClick = { showAddTransaction = true }
             )
         }
     ) { paddingValues ->
@@ -194,7 +197,21 @@ fun MainContainer(viewModel: AppViewModel) {
                     }
                     composable(NavItem.Budget.route) { PlaceholderScreen("Ngân sách") }
                     composable(NavItem.Analytics.route) { PlaceholderScreen("Phân tích") }
-                    composable(NavItem.Profile.route) { PlaceholderScreen("Cá nhân") }
+                    composable(NavItem.Profile.route) {
+                        ProfileScreen(
+                            userName = state.userInfo.name,
+                            userEmail = state.userInfo.email,
+                            avatarUrl = state.userInfo.avatarUrl,
+                            onManageWallets = { navController.navigate("wallet_list") },
+                            onUpdateAvatar = { url -> viewModel.updateAvatar(url) },
+                            onLogout = {
+                                viewModel.logout()
+                                rootNavController.navigate(Routes.WELCOME) {
+                                    popUpTo(0) { inclusive = true }
+                                }
+                            }
+                        )
+                    }
                 }
             }
 
@@ -213,6 +230,29 @@ fun MainContainer(viewModel: AppViewModel) {
                             )
                         )
                     )
+            )
+        }
+        } // Close Scaffold
+
+        // Add Transaction Modal Overlay
+        androidx.compose.animation.AnimatedVisibility(
+            visible = showAddTransaction,
+            enter = androidx.compose.animation.slideInVertically(
+                initialOffsetY = { it },
+                animationSpec = tween(400, easing = FastOutSlowInEasing)
+            ),
+            exit = androidx.compose.animation.slideOutVertically(
+                targetOffsetY = { it },
+                animationSpec = tween(400, easing = FastOutSlowInEasing)
+            )
+        ) {
+            com.dung.ddmoney.ui.transaction.AddTransactionScreen(
+                wallets = state.wallets,
+                onSave = { amount, walletId, note, date ->
+                    println("Saving transaction: $amount, $walletId, $note, $date")
+                    showAddTransaction = false
+                },
+                onDismiss = { showAddTransaction = false }
             )
         }
     }
