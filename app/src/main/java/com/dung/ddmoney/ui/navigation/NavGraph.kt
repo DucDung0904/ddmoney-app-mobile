@@ -1,5 +1,7 @@
 package com.dung.ddmoney.ui.navigation
 
+import kotlinx.coroutines.launch
+
 import androidx.compose.animation.*
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -129,9 +131,13 @@ fun MainContainer(viewModel: AppViewModel, rootNavController: NavHostController)
     val state by viewModel.state.collectAsState()
     var showAddTransaction by remember { mutableStateOf(false) }
 
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
         containerColor = Color.Transparent, 
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             BottomNavBar(
                 currentRoute = currentRoute,
@@ -195,7 +201,9 @@ fun MainContainer(viewModel: AppViewModel, rootNavController: NavHostController)
                             onWalletClick = { /* Navigate to Wallet Details */ }
                         )
                     }
-                    composable(NavItem.Budget.route) { PlaceholderScreen("Ngân sách") }
+                    composable(NavItem.Budget.route) { 
+                        com.dung.ddmoney.ui.budget.BudgetScreen() 
+                    }
                     composable(NavItem.Analytics.route) { PlaceholderScreen("Phân tích") }
                     composable(NavItem.Profile.route) {
                         ProfileScreen(
@@ -234,23 +242,27 @@ fun MainContainer(viewModel: AppViewModel, rootNavController: NavHostController)
         }
         } // Close Scaffold
 
-        // Add Transaction Modal Overlay
-        androidx.compose.animation.AnimatedVisibility(
-            visible = showAddTransaction,
-            enter = androidx.compose.animation.slideInVertically(
-                initialOffsetY = { it },
-                animationSpec = tween(400, easing = FastOutSlowInEasing)
-            ),
-            exit = androidx.compose.animation.slideOutVertically(
-                targetOffsetY = { it },
-                animationSpec = tween(400, easing = FastOutSlowInEasing)
-            )
-        ) {
+        if (showAddTransaction) {
             com.dung.ddmoney.ui.transaction.AddTransactionScreen(
                 wallets = state.wallets,
-                onSave = { amount, walletId, note, date ->
-                    println("Saving transaction: $amount, $walletId, $note, $date")
-                    showAddTransaction = false
+                categories = state.categories,
+                onSave = { amount, walletId, categoryId, type, note, date ->
+                    viewModel.addTransaction(
+                        com.dung.ddmoney.network.dto.TransactionRequest(
+                            title = null, // Will be filled by category name in repo/server if needed
+                            amount = amount,
+                            type = type,
+                            date = date.toString(),
+                            walletId = walletId.toLong(),
+                            categoryId = categoryId.toLong(),
+                            note = note
+                        )
+                    ) {
+                        showAddTransaction = false
+                        scope.launch {
+                            snackbarHostState.showSnackbar("Đã thêm giao dịch thành công!")
+                        }
+                    }
                 },
                 onDismiss = { showAddTransaction = false }
             )

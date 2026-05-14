@@ -305,6 +305,22 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    // ── Transaction Actions ─────────────────────────────────────────────
+    fun addTransaction(req: TransactionRequest, onComplete: () -> Unit = {}) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            transactionRepo.create(req)
+                .onSuccess {
+                    onComplete()
+                    syncAll() // Sync to update wallets and other data
+                }
+                .onFailure { e ->
+                    _error.value = "Không thể lưu giao dịch: ${e.message}"
+                }
+            _isLoading.value = false
+        }
+    }
+
 }
 
 // ─── Extension: Map API DTOs → Domain Models (kept for backward compat) ──

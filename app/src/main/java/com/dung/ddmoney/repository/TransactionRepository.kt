@@ -39,36 +39,13 @@ class TransactionRepository(
         dao.upsertAll(remote.map { it.toEntity() })
     }
 
-    /** Tạo mới: Lưu Local trước, Sync sau (Upload) */
-    suspend fun create(req: TransactionRequest): Result<Unit> = try {
-        // 1. Tạo Entity với ID local (UUID) và trạng thái PENDING
-        val entity = TransactionEntity(
-            id = UUID.randomUUID().toString(),
-            title = req.title,
-            amount = req.amount,
-            type = req.type,
-            date = req.date,
-            walletId = req.walletId,
-            walletName = null, // Sẽ được server fill sau
-            categoryId = req.categoryId,
-            categoryName = null,
-            categoryIcon = null,
-            categoryColor = null,
-            transferToWalletId = req.transferToWalletId,
-            transferToWalletName = null,
-            note = req.note,
-            syncStatus = SyncStatus.PENDING_INSERT
-        )
+    /** Tạo mới: Gửi lên Server trước, nhận về lưu Local sau (Đồng bộ ngay để tránh bị xóa khi syncAll) */
+    suspend fun create(req: TransactionRequest): Result<Unit> = safeCall {
+        // 1. Gửi lên server ngay lập tức
+        val response = api.createTransaction(req)
         
-        // 2. Lưu vào SQLite (UI sẽ cập nhật ngay lập tức nhờ Flow)
-        dao.upsert(entity)
-        
-        // 3. Chạy Worker để đẩy lên server
-        SyncWorker.enqueue(context)
-        
-        Result.success(Unit)
-    } catch (e: Exception) {
-        Result.failure(e)
+        // 2. Lưu data chuẩn từ server về local DB
+        dao.upsert(response.toEntity())
     }
 
     suspend fun getSummary(month: Int, year: Int): Result<TransactionSummary> = safeCall {
