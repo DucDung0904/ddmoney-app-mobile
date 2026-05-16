@@ -1,10 +1,14 @@
 package com.dung.ddmoney.ui.analytics
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.animateColorAsState
@@ -38,6 +42,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -106,10 +111,11 @@ fun ExpenseBreakdownDialog(report: ExpenseReport, onDismiss: () -> Unit) {
     val categoryBreakdowns = report.categoryBreakdowns
     val parentCategories = categoryBreakdowns.map { it.parent }
     var selectedCategoryId by remember(categoryBreakdowns) {
-        mutableStateOf(parentCategories.firstOrNull()?.id)
+        mutableStateOf<String?>(null)
     }
-    val selectedBreakdown =
-            categoryBreakdowns.firstOrNull { it.parent.id == selectedCategoryId }
+    var detailCategoryId by remember(categoryBreakdowns) {
+        mutableStateOf<String?>(null)
+    }
     val requestClose = {
         if (!closeRequested) closeRequested = true
     }
@@ -233,33 +239,89 @@ fun ExpenseBreakdownDialog(report: ExpenseReport, onDismiss: () -> Unit) {
                         if (parentCategories.isEmpty()) {
                             EmptyBreakdown()
                         } else {
-                            DonutBreakdownChart(
-                                    categories = parentCategories,
-                                    selectedCategoryId = selectedCategoryId,
-                                    onCategorySelected = { tapped ->
-                                        selectedCategoryId =
-                                                if (selectedCategoryId == tapped.id) null else tapped.id
+                            AnimatedContent(
+                                    targetState = detailCategoryId,
+                                    transitionSpec = {
+                                        if (targetState != null) {
+                                            slideInHorizontally(
+                                                    initialOffsetX = { fullWidth -> fullWidth },
+                                                    animationSpec =
+                                                            tween(280, easing = FastOutSlowInEasing)
+                                            ) + fadeIn(animationSpec = tween(160, delayMillis = 50)) togetherWith
+                                                    slideOutHorizontally(
+                                                            targetOffsetX = { fullWidth -> -fullWidth / 3 },
+                                                            animationSpec =
+                                                                    tween(
+                                                                            220,
+                                                                            easing = FastOutSlowInEasing
+                                                                    )
+                                                    ) + fadeOut(animationSpec = tween(140))
+                                        } else {
+                                            slideInHorizontally(
+                                                    initialOffsetX = { fullWidth -> -fullWidth / 3 },
+                                                    animationSpec =
+                                                            tween(240, easing = FastOutSlowInEasing)
+                                            ) + fadeIn(animationSpec = tween(150)) togetherWith
+                                                    slideOutHorizontally(
+                                                            targetOffsetX = { fullWidth -> fullWidth },
+                                                            animationSpec =
+                                                                    tween(
+                                                                            220,
+                                                                            easing = FastOutSlowInEasing
+                                                                    )
+                                                    ) + fadeOut(animationSpec = tween(140))
+                                        }
                                     },
-                                    modifier = Modifier.fillMaxWidth().height(300.dp)
-                            )
+                                    label = "expense_breakdown_page_transition"
+                            ) { targetDetailId ->
+                                val targetBreakdown =
+                                        categoryBreakdowns.firstOrNull {
+                                            it.parent.id == targetDetailId
+                                        }
 
-                            Spacer(modifier = Modifier.height(20.dp))
+                                if (targetBreakdown != null) {
+                                    ExpenseDetailPage(
+                                            breakdown = targetBreakdown,
+                                            onBack = {
+                                                detailCategoryId = null
+                                                selectedCategoryId = null
+                                                scope.launch { scrollState.animateScrollTo(0) }
+                                            },
+                                            modifier = Modifier.fillMaxWidth()
+                                    )
+                                } else {
+                                    Column(modifier = Modifier.fillMaxWidth()) {
+                                        DonutBreakdownChart(
+                                                categories = parentCategories,
+                                                selectedCategoryId = selectedCategoryId,
+                                                onCategorySelected = { tapped ->
+                                                    selectedCategoryId =
+                                                            if (selectedCategoryId == tapped.id) {
+                                                                null
+                                                            } else {
+                                                                tapped.id
+                                                            }
+                                                },
+                                                modifier = Modifier.fillMaxWidth().height(300.dp)
+                                        )
 
-                            ExpenseDetailPanel(
-                                    breakdown = selectedBreakdown,
-                                    modifier =
-                                            Modifier.fillMaxWidth()
-                                                    .padding(horizontal = 10.dp)
-                            )
+                                        Spacer(modifier = Modifier.height(20.dp))
 
-                            Spacer(modifier = Modifier.height(14.dp))
-
-                            parentCategories.forEach { category ->
-                                BreakdownRow(
-                                        category = category,
-                                        isSelected = category.id == selectedCategoryId,
-                                        onClick = { selectedCategoryId = category.id }
-                                )
+                                        parentCategories.forEach { category ->
+                                            BreakdownRow(
+                                                    category = category,
+                                                    isSelected = category.id == selectedCategoryId,
+                                                    onClick = {
+                                                        selectedCategoryId = category.id
+                                                        detailCategoryId = category.id
+                                                        scope.launch {
+                                                            scrollState.animateScrollTo(0)
+                                                        }
+                                                    }
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -575,50 +637,55 @@ private fun CategoryIconBadge(
 }
 
 @Composable
-private fun ExpenseDetailPanel(
-        breakdown: CategoryExpenseGroup?,
+private fun ExpenseDetailPage(
+        breakdown: CategoryExpenseGroup,
+        onBack: () -> Unit,
         modifier: Modifier = Modifier
 ) {
+    val parent = breakdown.parent
+
     Column(
             modifier =
-                    modifier.clip(RoundedCornerShape(24.dp))
-                            .background(OceanBlue50.copy(alpha = 0.72f))
-                            .padding(16.dp)
+                    modifier.padding(horizontal = 10.dp)
     ) {
-        Text(
-                text = "Chi tiết chi tiêu",
-                fontSize = 15.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = LuminousOnSurface
-        )
-        Text(
-                text = "Theo danh mục đang chọn",
-                fontSize = 12.sp,
-                color = NeutralGray600
-        )
+        Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                        contentDescription = "Quay lại",
+                        tint = OceanBlue600
+                )
+            }
 
-        Spacer(modifier = Modifier.height(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                        text = "Chi tiết chi tiêu",
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = LuminousOnSurface
+                )
+                Text(
+                        text = parent.name,
+                        fontSize = 12.sp,
+                        color = NeutralGray600
+                )
+            }
+        }
 
-        if (breakdown == null) {
-            EmptyExpenseDetailPanel()
-        } else {
+        Spacer(modifier = Modifier.height(10.dp))
+
+        Column(
+                modifier =
+                        Modifier.fillMaxWidth()
+                                .clip(RoundedCornerShape(24.dp))
+                                .background(OceanBlue50.copy(alpha = 0.72f))
+                                .padding(16.dp)
+        ) {
             SelectedCategoryDetails(breakdown = breakdown)
         }
-    }
-}
-
-@Composable
-private fun EmptyExpenseDetailPanel() {
-    Column(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-                text = "Chọn một danh mục để xem các khoản con.",
-                fontSize = 13.sp,
-                color = NeutralGray600,
-                textAlign = TextAlign.Center
-        )
     }
 }
 
