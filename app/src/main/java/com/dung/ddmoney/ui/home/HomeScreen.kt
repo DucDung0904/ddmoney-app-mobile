@@ -22,8 +22,11 @@ fun HomeScreen(
     userName: String = "Người dùng",
     totalBalance: Double = 0.0,
     wallets: List<Wallet> = emptyList(),
+    categories: List<Category> = emptyList(),
+    transactions: List<Transaction> = emptyList(),
     recentTransactions: List<Transaction> = emptyList(),
-    onSeeAllWallets: () -> Unit = {}
+    onSeeAllWallets: () -> Unit = {},
+    onAddWallet: ((Wallet) -> Unit)? = null
 ) {
     var isBalanceVisible by remember { mutableStateOf(true) }
 
@@ -51,23 +54,17 @@ fun HomeScreen(
             item { Spacer(modifier = Modifier.height(12.dp)) }
             item {
                 WalletCardsSection(
-                    wallets  = wallets,
-                    isVisible = isBalanceVisible,
-                    onSeeAll = onSeeAllWallets
+                    wallets     = wallets,
+                    isVisible   = isBalanceVisible,
+                    onSeeAll    = onSeeAllWallets,
+                    onAddWallet = onAddWallet
                 )
             }
             item { Spacer(modifier = Modifier.height(8.dp)) }
 
-            // ── 3. Thu / Chi summary ─────────────────────────────────────────
+            // ── 3. Spending Report ──────────────────────────────────────────
             item {
-                ThuChiSummaryCard(
-                    income  = recentTransactions
-                        .filter { it.type == TransactionType.INCOME }
-                        .sumOf  { it.amount },
-                    expense = recentTransactions
-                        .filter { it.type == TransactionType.EXPENSE }
-                        .sumOf  { it.amount }
-                )
+                HomeReportSection(transactions = transactions, categories = categories)
             }
 
             // ── 4. Recent transactions header + list ─────────────────────────

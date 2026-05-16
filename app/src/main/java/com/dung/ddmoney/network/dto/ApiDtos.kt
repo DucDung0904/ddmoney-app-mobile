@@ -8,22 +8,38 @@ data class WalletResponse(
     val id: Long,
     val name: String,
     val balance: Double,
-    val type: String,           // "CASH" | "BANK" | "EWALLET" | "CREDIT"
-    val bankName: String?,
-    val cardNumber: String?,
-    val colorHex: String?,
-    val isActive: Boolean?,
-    val icon: String? = null    // key dùng để map sang ImageVector, e.g. "wallet", "savings"
+    val type: String,                   // "CASH" | "BANK" | "EWALLET" | "CREDIT_CARD" | "SAVINGS" | "INVESTMENT"
+    val bankName: String? = null,
+    val cardNumber: String? = null,
+    val colorHex: String? = null,
+    val icon: String? = null,
+    val currency: String? = null,
+    val isActive: Boolean? = null,
+    val isDefault: Boolean? = null,
+    val isArchived: Boolean? = null,
+    val sortOrder: Int? = null,
+    // Credit card fields
+    val creditLimit: Double? = null,
+    val currentDebt: Double? = null,
+    val billingDay: Int? = null,
+    val paymentDueDay: Int? = null
 )
 
 data class WalletRequest(
     val name: String,
     val balance: Double = 0.0,
-    val type: String,           // "CASH" | "BANK" | "EWALLET" | "CREDIT"
+    val type: String,                   // "CASH" | "BANK" | "EWALLET" | "CREDIT_CARD" | "SAVINGS" | "INVESTMENT"
     val bankName: String? = null,
     val cardNumber: String? = null,
     val colorHex: String = "#4659A6",
-    val icon: String = "wallet" // key map sang ImageVector — xem WalletIconMap
+    val icon: String = "wallet",
+    val currency: String = "VND",
+    val isDefault: Boolean = false,
+    // Credit card fields
+    val creditLimit: Double? = null,
+    val currentDebt: Double? = null,
+    val billingDay: Int? = null,
+    val paymentDueDay: Int? = null
 )
 
 data class TransferRequest(
@@ -41,18 +57,37 @@ data class TotalBalanceResponse(
 
 data class CategoryResponse(
     val id: Long,
+    @SerializedName(value = "userId", alternate = ["user_id"])
+    val userId: Long? = null,
     val name: String,
     val icon: String,
+    @SerializedName(value = "colorHex", alternate = ["color_hex"])
     val colorHex: String?,
     val type: String,           // "INCOME" | "EXPENSE" | "DEBT" | "BOTH"
-    val isDefault: Boolean?
+    @SerializedName(value = "isDefault", alternate = ["is_default"])
+    val isDefault: Boolean?,
+    @SerializedName(value = "isEditable", alternate = ["is_editable"])
+    val isEditable: Boolean? = null,
+    @SerializedName(value = "isDeletable", alternate = ["is_deletable"])
+    val isDeletable: Boolean? = null,
+    @SerializedName(value = "isDeleted", alternate = ["is_deleted"])
+    val isDeleted: Boolean? = null,
+    @SerializedName(value = "parentId", alternate = ["parent_id"])
+    val parentId: Long? = null,
+    @SerializedName(value = "sortOrder", alternate = ["sort_order"])
+    val sortOrder: Int? = null
 )
 
 data class CategoryRequest(
     val name: String,
-    val icon: String = "📦",
+    val icon: String = "category",
     val colorHex: String = "#4659A6",
-    val type: String            // "INCOME" | "EXPENSE" | "DEBT" | "BOTH"
+    val type: String,           // "INCOME" | "EXPENSE" | "DEBT" | "BOTH"
+    val parentId: Long? = null,
+    val sortOrder: Int = 10_000,
+    val isDefault: Boolean = false,
+    val isEditable: Boolean = true,
+    val isDeletable: Boolean = true
 )
 
 // ─── Transaction DTOs ─────────────────────────────────────────────────
@@ -120,10 +155,8 @@ data class ApiMessage(val message: String)
 
 data class BudgetResponse(
     val id: Long,
-    val categoryId: Long,
-    val categoryName: String,
-    val categoryIcon: String,
-    val categoryColor: String?,
+    val name: String,
+    val categories: List<CategoryResponse>,
     val budgetAmount: Double,
     val spentAmount: Double,
     val remainingAmount: Double,
@@ -133,7 +166,8 @@ data class BudgetResponse(
 )
 
 data class BudgetRequest(
-    val categoryId: Long,
+    val name: String,
+    val categoryIds: List<Long>,
     val amount: Double,
     val month: Int,
     val year: Int

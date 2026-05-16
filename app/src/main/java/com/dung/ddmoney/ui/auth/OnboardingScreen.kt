@@ -425,7 +425,7 @@ private fun WalletStep(
                                 WalletTypeOption(WalletType.CASH,    "Tiền mặt",     Icons.Rounded.Payments,       Color(0xFFE8F5E9), Color(0xFF2E7D32)),
                                 WalletTypeOption(WalletType.BANK,    "Ngân hàng",    Icons.Rounded.AccountBalance,  Color(0xFFE3F2FD), Color(0xFF1565C0)),
                                 WalletTypeOption(WalletType.EWALLET, "Ví điện tử",   Icons.Rounded.PhoneAndroid,    Color(0xFFF3E5F5), Color(0xFF6A1B9A)),
-                                WalletTypeOption(WalletType.CREDIT,  "Thẻ tín dụng", Icons.Rounded.CreditCard,      Color(0xFFFFF3E0), Color(0xFFE65100))
+                                WalletTypeOption(WalletType.CREDIT_CARD,  "Thẻ tín dụng", Icons.Rounded.CreditCard,      Color(0xFFFFF3E0), Color(0xFFE65100))
                         )
                         Row(
                                 modifier = Modifier.fillMaxWidth(),

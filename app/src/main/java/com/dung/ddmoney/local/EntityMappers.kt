@@ -19,7 +19,7 @@ import java.util.UUID
 
 // ─── WalletResponse → WalletEntity ───────────────────────────────────────
 fun WalletResponse.toEntity(): WalletEntity = WalletEntity(
-    id = id.toString(), // Sử dụng serverId làm local id để tránh bị nhân bản khi update
+    id = id.toString(),
     serverId = id,
     name = name,
     balance = balance,
@@ -27,30 +27,54 @@ fun WalletResponse.toEntity(): WalletEntity = WalletEntity(
     bankName = bankName,
     cardNumber = cardNumber,
     colorHex = colorHex ?: "#4659A6",
+    icon = icon ?: "wallet",
+    currency = currency ?: "VND",
+    isDefault = isDefault ?: false,
     isActive = isActive ?: true,
+    isArchived = isArchived ?: false,
+    sortOrder = sortOrder ?: 0,
+    creditLimit = creditLimit,
+    currentDebt = currentDebt,
+    billingDay = billingDay,
+    paymentDueDay = paymentDueDay,
     syncStatus = SyncStatus.SYNCED
 )
 
 // ─── WalletEntity → Domain Wallet ────────────────────────────────────────
 fun WalletEntity.toModel(): Wallet = Wallet(
-    id = serverId?.toString() ?: id, // Ưu tiên serverId để hiển thị
+    id = serverId?.toString() ?: id,
     name = name,
     balance = balance,
-    type = runCatching { WalletType.valueOf(type) }.getOrDefault(WalletType.CASH),
+    type = WalletType.fromString(type),
     bank = bankName ?: "",
     cardNumber = cardNumber ?: "",
-    color = parseColor(colorHex)
+    color = parseColor(colorHex),
+    icon = icon,
+    currency = currency,
+    isDefault = isDefault,
+    isArchived = isArchived,
+    sortOrder = sortOrder,
+    creditLimit = creditLimit,
+    currentDebt = currentDebt,
+    billingDay = billingDay,
+    paymentDueDay = paymentDueDay
 )
 
 // ─── CategoryResponse → CategoryEntity ───────────────────────────────────
 fun CategoryResponse.toEntity(): CategoryEntity = CategoryEntity(
     id = id.toString(),
     serverId = id,
+    userId = userId,
     name = name,
     icon = icon,
     colorHex = colorHex ?: "#4659A6",
     type = type,
     isDefault = isDefault ?: false,
+    isEditable = isEditable ?: !(isDefault ?: false),
+    isDeletable = isDeletable ?: !(isDefault ?: false),
+    isDeleted = isDeleted ?: false,
+    parentId = parentId,
+    sortOrder = sortOrder ?: 10_000,
     syncStatus = SyncStatus.SYNCED
 )
 
@@ -61,7 +85,13 @@ fun CategoryEntity.toModel(): Category = Category(
     icon = icon,
     color = parseColor(colorHex),
     type = runCatching { CategoryType.valueOf(type) }.getOrDefault(CategoryType.EXPENSE),
-    isDefault = isDefault
+    isDefault = isDefault,
+    isEditable = isEditable,
+    isDeletable = isDeletable,
+    isDeleted = isDeleted,
+    parentId = parentId?.toString(),
+    sortOrder = sortOrder,
+    userId = userId
 )
 
 // ─── TransactionResponse → TransactionEntity ─────────────────────────────

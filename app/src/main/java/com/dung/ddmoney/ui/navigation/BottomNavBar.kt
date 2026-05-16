@@ -32,6 +32,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.dung.ddmoney.ui.theme.NeutralGray600
+import com.dung.ddmoney.ui.theme.OceanBlue600
 
 sealed class NavItem(
         val route: String,
@@ -48,7 +50,7 @@ sealed class NavItem(
                     Icons.Outlined.AccountBalanceWallet
             )
     object Analytics :
-            NavItem("analytics", "Thống kê", Icons.Outlined.Analytics, Icons.Outlined.Analytics)
+            NavItem("analytics", "Báo cáo", Icons.Outlined.Analytics, Icons.Outlined.Analytics)
     object Profile : NavItem("profile", "Cá nhân", Icons.Outlined.Person, Icons.Outlined.Person)
 }
 
@@ -100,7 +102,7 @@ fun BottomNavBar(currentRoute: String, onNavigate: (String) -> Unit, onAddClick:
         Surface(
                 modifier = Modifier.align(Alignment.TopCenter).offset(y = (-24).dp).size(56.dp),
                 shape = CircleShape,
-                color = Color(0xFF003CC7),
+                color = OceanBlue600,
                 shadowElevation = 8.dp
         ) {
             Box(
@@ -122,7 +124,7 @@ fun BottomNavBar(currentRoute: String, onNavigate: (String) -> Unit, onAddClick:
 private fun NavBarItem(item: NavItem, isSelected: Boolean, onClick: () -> Unit) {
     val contentColor by
             animateColorAsState(
-                    targetValue = if (isSelected) Color(0xFF003CC7) else Color(0xFF7E8CA0),
+                    targetValue = if (isSelected) OceanBlue600 else NeutralGray600,
                     animationSpec = tween(300),
                     label = "color"
             )

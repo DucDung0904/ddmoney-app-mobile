@@ -11,6 +11,8 @@ import com.dung.ddmoney.network.dto.*
 import com.dung.ddmoney.network.dto.AuthRequest
 import com.dung.ddmoney.network.dto.RegisterRequest
 import com.dung.ddmoney.repository.AuthRepository
+import com.dung.ddmoney.repository.BudgetDisplayModel
+import com.dung.ddmoney.repository.BudgetRepository
 import com.dung.ddmoney.repository.CategoryRepository
 import com.dung.ddmoney.repository.TransactionRepository
 import com.dung.ddmoney.repository.WalletRepository
@@ -18,8 +20,7 @@ import com.dung.ddmoney.ui.dashboard.model.*
 import com.dung.ddmoney.ui.theme.*
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -30,12 +31,14 @@ data class AppState(
         val transactions: List<Transaction> = emptyList(),
         val categories: List<Category> = emptyList(),
         val wallets: List<Wallet> = emptyList(),
+        val budgets: List<BudgetDisplayModel> = emptyList(),
         val userInfo: UserInfo = UserInfo(),
         val isLoading: Boolean = false,
         val error: String? = null
 )
 
 // ─── AppViewModel ─────────────────────────────────────────────────────
+@OptIn(ExperimentalCoroutinesApi::class)
 class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     private val db = AppDatabase.getInstance(application)
@@ -52,6 +55,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val walletRepo = WalletRepository(api, db.walletDao())
     private val categoryRepo = CategoryRepository(api, db.categoryDao())
     private val transactionRepo = TransactionRepository(api, db.transactionDao(), application)
+    private val budgetRepo = BudgetRepository(api, db.budgetDao(), db.transactionDao(), db.categoryDao())
 
     // Loading & error state (tách riêng để không làm mất reactive state)
     private val _isLoading = MutableStateFlow(false)
@@ -65,6 +69,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                             avatarUrl = tokenManager.getUserAvatar()
                     )
             )
+    private val _currentUserId = MutableStateFlow(tokenManager.getUserId())
 
     private val _isDarkMode = MutableStateFlow(tokenManager.isDarkMode())
     val isDarkMode: StateFlow<Boolean> = _isDarkMode.asStateFlow()
@@ -81,9 +86,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Xác định màn hình bắt đầu khi app khởi động dựa vào trạng thái token & onboarding.
-     * Được gọi 1 lần duy nhất ở MainActivity trước khi NavGraph render.
-     * - Không có token  → WELCOME
+     * Xác định màn hình bắt đầu khi app khởi động dựa vào trạng thái token & onboarding. Được gọi 1
+     * lần duy nhất ở MainActivity trước khi NavGraph render.
+     * - Không có token → WELCOME
      * - Có token nhưng chưa onboarding → ONBOARDING
      * - Có token & đã onboarding → MAIN
      */
@@ -96,7 +101,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun completeOnboarding(currency: String, walletName: String, walletBalance: Double, walletIcon: String = "wallet", walletType: WalletType = WalletType.CASH) {
+    fun completeOnboarding(
+            currency: String,
+            walletName: String,
+            walletBalance: Double,
+            walletIcon: String = "wallet",
+            walletType: WalletType = WalletType.CASH
+    ) {
         tokenManager.setCurrency(currency)
         tokenManager.setOnboardingDone(true)
         _currency.value = currency
@@ -124,9 +135,15 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
      */
     val state: StateFlow<AppState> =
             combine(
-                            walletRepo.observeAll(),
-                            categoryRepo.observeAll(),
+                            walletRepo.observeActive(),
+                            _currentUserId.flatMapLatest { userId ->
+                                categoryRepo.observeAll(userId)
+                            },
                             transactionRepo.observeAll(),
+                            budgetRepo.getBudgetsWithCalculatedSpent(
+                                    LocalDate.now().monthValue,
+                                    LocalDate.now().year
+                            ),
                             _userInfo,
                             _isLoading,
                             _error
@@ -134,14 +151,17 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                         @Suppress("UNCHECKED_CAST") val wallets = args[0] as List<Wallet>
                         @Suppress("UNCHECKED_CAST") val categories = args[1] as List<Category>
                         @Suppress("UNCHECKED_CAST") val transactions = args[2] as List<Transaction>
-                        val userInfo = args[3] as UserInfo
-                        val isLoading = args[4] as Boolean
-                        val error = args[5] as String?
+                        @Suppress("UNCHECKED_CAST")
+                        val budgets = args[3] as List<BudgetDisplayModel>
+                        val userInfo = args[4] as UserInfo
+                        val isLoading = args[5] as Boolean
+                        val error = args[6] as String?
 
                         AppState(
                                 wallets = wallets,
                                 categories = categories,
                                 transactions = transactions,
+                                budgets = budgets,
                                 userInfo = userInfo,
                                 isLoading = isLoading,
                                 error = error
@@ -183,6 +203,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             authRepo.login(req)
                     .onSuccess {
                         _isLoggedIn.value = true
+                        _currentUserId.value = tokenManager.getUserId()
                         _userInfo.value =
                                 UserInfo(
                                         name = tokenManager.getUserName(),
@@ -253,12 +274,78 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun logout() {
         authRepo.logout()
         _isLoggedIn.value = false
+        _currentUserId.value = -1L
         _userInfo.value = UserInfo()
         // Xóa data local
         viewModelScope.launch {
             db.transactionDao().deleteAll()
             db.walletDao().deleteAll()
             db.categoryDao().deleteAll()
+            db.budgetDao().deleteAll()
+            db.budgetDao().deleteAllCategories()
+        }
+    }
+
+    // ── Budget Actions ──────────────────────────────────────────────────
+    fun createBudget(name: String, amount: Double, month: Int, year: Int, categoryIds: List<Long>) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            try {
+                budgetRepo.createBudget(
+                        0L,
+                        name,
+                        amount,
+                        month,
+                        year,
+                        categoryIds
+                )
+                syncAll()
+            } catch (e: retrofit2.HttpException) {
+                val errorBody = e.response()?.errorBody()?.string()
+                _error.value = "Lỗi server (400): $errorBody"
+            } catch (e: Exception) {
+                _error.value = "Không thể tạo ngân sách: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun updateBudget(
+            budgetId: String,
+            name: String,
+            amount: Double,
+            month: Int,
+            year: Int,
+            categoryIds: List<Long>
+    ) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            try {
+                budgetRepo.updateBudget(budgetId, 0L, name, amount, month, year, categoryIds)
+                syncAll()
+            } catch (e: Exception) {
+                _error.value = "Không thể cập nhật ngân sách: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun deleteBudget(budgetId: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            try {
+                budgetRepo.deleteBudget(budgetId)
+                syncAll()
+            } catch (e: Exception) {
+                _error.value = "Không thể xóa ngân sách: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
         }
     }
 
@@ -268,12 +355,16 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             _isLoading.value = true
             _error.value = null
             try {
-                listOf(
-                                async { walletRepo.sync() },
-                                async { categoryRepo.sync() },
-                                async { transactionRepo.sync() }
+                val syncResults =
+                        listOf(
+                                walletRepo.sync(),
+                                transactionRepo.sync(),
+                                categoryRepo.sync()
                         )
-                        .awaitAll()
+                syncResults.firstOrNull { it.isFailure }?.exceptionOrNull()?.let { error ->
+                    _error.value = "Không thể đồng bộ toàn bộ dữ liệu: ${error.message}"
+                }
+                budgetRepo.sync()
             } catch (e: Exception) {
                 _error.value = "Không thể kết nối tới server: ${e.message}"
             } finally {
@@ -309,64 +400,46 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun addTransaction(req: TransactionRequest, onComplete: () -> Unit = {}) {
         viewModelScope.launch {
             _isLoading.value = true
-            transactionRepo.create(req)
-                .onSuccess {
-                    onComplete()
-                    syncAll() // Sync to update wallets and other data
-                }
-                .onFailure { e ->
-                    _error.value = "Không thể lưu giao dịch: ${e.message}"
-                }
+            transactionRepo
+                    .create(req)
+                    .onSuccess {
+                        onComplete()
+                        syncAll() // Sync to update wallets and other data
+                    }
+                    .onFailure { e -> _error.value = "Không thể lưu giao dịch: ${e.message}" }
             _isLoading.value = false
         }
     }
 
+    // ── Wallet Actions ──────────────────────────────────────────────────
+    fun createWallet(req: WalletRequest, onComplete: () -> Unit = {}) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            walletRepo.create(req)
+                    .onSuccess {
+                        onComplete()
+                        syncAll()
+                    }
+                    .onFailure { e -> _error.value = "Không thể tạo ví: ${e.message}" }
+            _isLoading.value = false
+        }
+    }
+
+    fun setDefaultWallet(walletId: String) {
+        viewModelScope.launch {
+            walletRepo.setDefaultWallet(walletId)
+                    .onFailure { e -> _error.value = "Không thể đặt ví mặc định: ${e.message}" }
+        }
+    }
+
+    fun archiveWallet(serverId: Long) {
+        viewModelScope.launch {
+            walletRepo.delete(serverId)
+                    .onSuccess { syncAll() }
+                    .onFailure { e -> _error.value = "Không thể xóa ví: ${e.message}" }
+        }
+    }
 }
-
-// ─── Extension: Map API DTOs → Domain Models (kept for backward compat) ──
-
-fun WalletResponse.toModel(): Wallet =
-        Wallet(
-                id = id.toString(),
-                name = name,
-                balance = balance,
-                type = runCatching { WalletType.valueOf(type) }.getOrDefault(WalletType.CASH),
-                bank = bankName ?: "",
-                cardNumber = cardNumber ?: "",
-                color = parseColor(colorHex)
-        )
-
-fun CategoryResponse.toModel(): Category =
-        Category(
-                id = id.toString(),
-                name = name,
-                icon = icon,
-                color = parseColor(colorHex),
-                type =
-                        runCatching { CategoryType.valueOf(type) }
-                                .getOrDefault(CategoryType.EXPENSE),
-                isDefault = isDefault ?: false
-        )
-
-fun TransactionResponse.toModel(): Transaction =
-        Transaction(
-                id = id.toString(),
-                title = title,
-                categoryId = categoryId.toString(),
-                categoryName = categoryName ?: "",
-                categoryIcon = categoryIcon ?: "📦",
-                categoryColor = parseColor(categoryColor),
-                amount = amount,
-                type =
-                        runCatching { TransactionType.valueOf(type) }
-                                .getOrDefault(TransactionType.EXPENSE),
-                walletId = walletId.toString(),
-                walletName = walletName ?: "",
-                date =
-                        runCatching { LocalDate.parse(date, DateTimeFormatter.ISO_LOCAL_DATE) }
-                                .getOrDefault(LocalDate.now()),
-                note = note ?: ""
-        )
 
 // Parse "#RRGGBB" hex string to Compose Color, with sensible fallback
 fun parseColor(hex: String?): Color {

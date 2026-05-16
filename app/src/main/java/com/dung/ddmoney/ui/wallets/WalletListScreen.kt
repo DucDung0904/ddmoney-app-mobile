@@ -261,12 +261,7 @@ private fun WalletDetailItem(wallet: Wallet, onClick: () -> Unit) {
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Text(
-                    text = when(wallet.type) {
-                        WalletType.CASH -> "Tiền mặt"
-                        WalletType.BANK -> "Ngân hàng"
-                        WalletType.EWALLET -> "Ví điện tử"
-                        WalletType.CREDIT -> "Thẻ tín dụng"
-                    },
+                    text = wallet.type.displayName,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF003CC7),

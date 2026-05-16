@@ -8,13 +8,26 @@ import com.dung.ddmoney.local.SyncStatus
 data class WalletEntity(
     @PrimaryKey val id: String,         // UUID local
     val serverId: Long? = null,         // ID từ MySQL
+    val userId: Long? = null,
     val name: String,
     val balance: Double,
-    val type: String,
-    val bankName: String?,
-    val cardNumber: String?,
-    val colorHex: String,
-    val isActive: Boolean = true,
-    val syncStatus: SyncStatus = SyncStatus.SYNCED, // Thường wallet sẽ được tạo online hoặc sync từ đầu
+    val type: String,                   // WalletType.name
+    val bankName: String? = null,
+    val cardNumber: String? = null,
+    val colorHex: String = "#4659A6",
+    val icon: String = "wallet",
+    val currency: String = "VND",
+    val isDefault: Boolean = false,
+    val isActive: Boolean = true,       // backward compat
+    val isArchived: Boolean = false,
+    val sortOrder: Int = 0,
+    // Credit card specific
+    val creditLimit: Double? = null,
+    val currentDebt: Double? = null,
+    val billingDay: Int? = null,
+    val paymentDueDay: Int? = null,
+    // Metadata
+    val syncStatus: SyncStatus = SyncStatus.SYNCED,
+    val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 )

@@ -15,6 +15,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.dung.ddmoney.ui.components.CategoryIcon
 import com.dung.ddmoney.ui.dashboard.model.Transaction
 import com.dung.ddmoney.ui.dashboard.model.TransactionType
 import com.dung.ddmoney.ui.theme.*
@@ -77,7 +78,12 @@ internal fun TransactionPill(
                     .background(LuminousSurfaceContainerLow),
                 contentAlignment = Alignment.Center
             ) {
-                Text(text = transaction.categoryIcon, fontSize = 20.sp)
+                CategoryIcon(
+                    icon = transaction.categoryIcon,
+                    modifier = Modifier.size(20.dp),
+                    tint = transaction.categoryColor,
+                    fallbackFontSize = 20.sp
+                )
             }
 
             Spacer(modifier = Modifier.width(12.dp))

@@ -8,8 +8,8 @@ import java.util.concurrent.TimeUnit
 
 object RetrofitClient {
 
-    private const val BASE_URL = "http://10.0.2.2:8080/"
-//    private const val BASE_URL = "http://172.26.47.72:8080/"
+//    private const val BASE_URL = "http://10.0.2.2:8080/"
+    private const val BASE_URL = "http://192.168.0.220:8080/"
     
     private var tokenManager: TokenManager? = null
     
