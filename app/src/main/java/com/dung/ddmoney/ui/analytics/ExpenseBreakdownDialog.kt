@@ -245,16 +245,14 @@ fun ExpenseBreakdownDialog(report: ExpenseReport, onDismiss: () -> Unit) {
 
                             Spacer(modifier = Modifier.height(20.dp))
 
-                            selectedBreakdown?.let { breakdown ->
-                                SelectedCategoryDetails(
-                                        breakdown = breakdown,
-                                        modifier =
-                                                Modifier.fillMaxWidth()
-                                                        .padding(horizontal = 10.dp)
-                                )
+                            ExpenseDetailPanel(
+                                    breakdown = selectedBreakdown,
+                                    modifier =
+                                            Modifier.fillMaxWidth()
+                                                    .padding(horizontal = 10.dp)
+                            )
 
-                                Spacer(modifier = Modifier.height(14.dp))
-                            }
+                            Spacer(modifier = Modifier.height(14.dp))
 
                             parentCategories.forEach { category ->
                                 BreakdownRow(
@@ -577,20 +575,60 @@ private fun CategoryIconBadge(
 }
 
 @Composable
-private fun SelectedCategoryDetails(
-        breakdown: CategoryExpenseGroup,
+private fun ExpenseDetailPanel(
+        breakdown: CategoryExpenseGroup?,
         modifier: Modifier = Modifier
 ) {
+    Column(
+            modifier =
+                    modifier.clip(RoundedCornerShape(24.dp))
+                            .background(OceanBlue50.copy(alpha = 0.72f))
+                            .padding(16.dp)
+    ) {
+        Text(
+                text = "Chi tiết chi tiêu",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = LuminousOnSurface
+        )
+        Text(
+                text = "Theo danh mục đang chọn",
+                fontSize = 12.sp,
+                color = NeutralGray600
+        )
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        if (breakdown == null) {
+            EmptyExpenseDetailPanel()
+        } else {
+            SelectedCategoryDetails(breakdown = breakdown)
+        }
+    }
+}
+
+@Composable
+private fun EmptyExpenseDetailPanel() {
+    Column(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+                text = "Chọn một danh mục để xem các khoản con.",
+                fontSize = 13.sp,
+                color = NeutralGray600,
+                textAlign = TextAlign.Center
+        )
+    }
+}
+
+@Composable
+private fun SelectedCategoryDetails(breakdown: CategoryExpenseGroup) {
     val parent = breakdown.parent
     val children = breakdown.children
     val largestChild = children.firstOrNull()
 
-    Column(
-            modifier =
-                    modifier.clip(RoundedCornerShape(22.dp))
-                            .background(OceanBlue50.copy(alpha = 0.72f))
-                            .padding(16.dp)
-    ) {
+    Column(modifier = Modifier.fillMaxWidth()) {
         Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
