@@ -40,6 +40,7 @@ data class ExpenseReport(
         val currentTotal: Double,
         val previousTotal: Double,
         val transactionCount: Int,
+        val previousTransactionCount: Int = 0,
         val currentLabel: String,
         val previousLabel: String,
         val rangeLabel: String,
@@ -49,6 +50,9 @@ data class ExpenseReport(
         val categoryBreakdowns: List<CategoryExpenseGroup> =
                 topCategories.map { CategoryExpenseGroup(parent = it, children = emptyList()) }
 ) {
+    val hasPreviousPeriodData: Boolean
+        get() = previousTransactionCount > 0 || previousTotal > 0.0
+
     val difference: Double
         get() = currentTotal - previousTotal
 
@@ -113,6 +117,7 @@ fun buildExpenseReport(
             currentTotal = currentTotal,
             previousTotal = previousTotal,
             transactionCount = currentTransactions.size,
+            previousTransactionCount = previousTransactions.size,
             currentLabel = if (period == ReportPeriod.WEEK) "Tuần này" else "Tháng này",
             previousLabel = if (period == ReportPeriod.WEEK) "Tuần trước" else "Tháng trước",
             rangeLabel = rangeLabel(period, range.first, range.second),

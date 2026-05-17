@@ -2,13 +2,17 @@ package com.dung.ddmoney.ui.analytics
 
 import android.graphics.Paint
 import android.graphics.Typeface
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -34,6 +38,8 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -190,14 +196,14 @@ private fun AnalyticsSummaryCard(
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 MetricPill(
                         label = report.previousLabel,
-                        value = formatVnd(report.previousTotal),
+                        value = previousPeriodValue(report),
                         modifier = Modifier.weight(1f)
                 )
                 MetricPill(
                         label = differenceLabel(report),
                         value = differenceValue(report),
                         modifier = Modifier.weight(1f),
-                        valueColor = if (report.difference <= 0.0) SavingsTeal600 else ExpenseRed600
+                        valueColor = differenceColor(report)
                 )
             }
 
@@ -213,21 +219,30 @@ private fun AnalyticsSummaryCard(
 
 @Composable
 private fun ReportPeriodSelector(selected: ReportPeriod, onSelect: (ReportPeriod) -> Unit) {
-    BoxWithConstraints(
+    val periods = ReportPeriod.values()
+    val density = LocalDensity.current
+    var selectorWidthPx by remember { mutableStateOf(0) }
+    val segmentWidth =
+            with(density) { (selectorWidthPx.toFloat() / periods.size).toDp() }
+
+    Box(
             modifier =
                     Modifier.fillMaxWidth()
                             .height(50.dp)
+                            .onSizeChanged { selectorWidthPx = it.width }
                             .clip(RoundedCornerShape(18.dp))
                             .background(LuminousSurfaceContainerLow)
                             .padding(4.dp)
     ) {
-        val periods = ReportPeriod.values()
         val selectedIndex = periods.indexOf(selected).coerceAtLeast(0)
-        val segmentWidth = maxWidth / periods.size.toFloat()
         val indicatorOffset by
                 animateDpAsState(
                         targetValue = segmentWidth * selectedIndex.toFloat(),
-                        animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+                        animationSpec =
+                                spring(
+                                        dampingRatio = Spring.DampingRatioNoBouncy,
+                                        stiffness = Spring.StiffnessMediumLow
+                                ),
                         label = "analytics_period_selector_offset"
                 )
 
@@ -243,12 +258,27 @@ private fun ReportPeriodSelector(selected: ReportPeriod, onSelect: (ReportPeriod
         Row(modifier = Modifier.fillMaxWidth()) {
             periods.forEach { period ->
                 val isActive = selected == period
+                val interactionSource = remember(period) { MutableInteractionSource() }
+                val textColor by
+                        animateColorAsState(
+                                targetValue = if (isActive) Color.White else NeutralGray600,
+                                animationSpec =
+                                        tween(
+                                                durationMillis = 180,
+                                                easing = FastOutSlowInEasing
+                                        ),
+                                label = "analytics_period_${period.name}_text_color"
+                        )
                 Box(
                     modifier =
                                     Modifier.weight(1f)
                                             .fillMaxHeight()
                                             .clip(RoundedCornerShape(15.dp))
-                                    .clickable { onSelect(period) }
+                                    .clickable(
+                                            interactionSource = interactionSource,
+                                            indication = null,
+                                            onClick = { onSelect(period) }
+                                    )
                                     .padding(vertical = 11.dp),
                         contentAlignment = Alignment.Center
                 ) {
@@ -256,7 +286,7 @@ private fun ReportPeriodSelector(selected: ReportPeriod, onSelect: (ReportPeriod
                         text = period.label,
                         fontSize = 14.sp,
                         fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
-                        color = if (isActive) Color.White else NeutralGray600
+                        color = textColor
                     )
                 }
             }
@@ -290,23 +320,31 @@ private fun SpendingDeltaBadge(report: ExpenseReport) {
     val isLower = difference < 0.0
     val valueColor =
             when {
+                !report.hasPreviousPeriodData -> NeutralGray600
                 isHigher -> ExpenseRed600
                 isLower -> SavingsTeal600
                 else -> NeutralGray600
             }
     val backgroundColor =
             when {
+                !report.hasPreviousPeriodData -> NeutralGray50
                 isHigher -> ExpenseRed50
                 isLower -> SavingsTeal50
                 else -> NeutralGray50
             }
     val valueText =
             when {
+                !report.hasPreviousPeriodData -> "Chưa có"
                 isHigher -> "+${compactMoney(difference)}"
                 isLower -> "-${compactMoney(-difference)}"
                 else -> "0"
             }
-    val label = "so với ${report.previousLabel.lowercase()}"
+    val label =
+            if (report.hasPreviousPeriodData) {
+                "so với ${report.previousLabel.lowercase()}"
+            } else {
+                "dữ liệu ${report.previousLabel.lowercase()}"
+            }
 
     Column(
             modifier =
@@ -550,7 +588,7 @@ private fun CategorySpendingRow(category: CategoryExpense) {
                 Spacer(modifier = Modifier.height(8.dp))
 
                 LinearProgressIndicator(
-                        progress = category.percentage.coerceIn(0f, 1f),
+                        progress = { category.percentage.coerceIn(0f, 1f) },
                         modifier = Modifier.fillMaxWidth().height(7.dp).clip(CircleShape),
                         color = category.color,
                         trackColor = SavingsTeal50
@@ -584,7 +622,7 @@ private fun EmptyReportState() {
 
 private fun differenceLabel(report: ExpenseReport): String {
     return when {
-        report.previousTotal == 0.0 -> "So với kỳ trước"
+        !report.hasPreviousPeriodData -> "Chưa so sánh"
         report.difference <= 0.0 -> "Giảm chi"
         else -> "Tăng chi"
     }
@@ -592,9 +630,24 @@ private fun differenceLabel(report: ExpenseReport): String {
 
 private fun differenceValue(report: ExpenseReport): String {
     return when {
-        report.previousTotal == 0.0 && report.currentTotal == 0.0 -> "0 đ"
-        report.previousTotal == 0.0 -> formatVnd(report.currentTotal)
+        !report.hasPreviousPeriodData -> "--"
         else -> formatVnd(abs(report.difference))
+    }
+}
+
+private fun previousPeriodValue(report: ExpenseReport): String {
+    return if (report.hasPreviousPeriodData) {
+        formatVnd(report.previousTotal)
+    } else {
+        "Chưa có dữ liệu"
+    }
+}
+
+private fun differenceColor(report: ExpenseReport): Color {
+    return when {
+        !report.hasPreviousPeriodData -> NeutralGray600
+        report.difference <= 0.0 -> SavingsTeal600
+        else -> ExpenseRed600
     }
 }
 

@@ -1,12 +1,14 @@
 package com.dung.ddmoney.ui.home
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.dp
 import com.dung.ddmoney.ui.dashboard.model.*
 import com.dung.ddmoney.ui.home.components.*
@@ -33,7 +35,7 @@ fun HomeScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(LuminousBackground)
+            .background(HomeBackgroundBrush)
     ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -78,8 +80,9 @@ fun HomeScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp),
                     shape    = RoundedCornerShape(24.dp),
-                    color    = LuminousSurfaceContainerLowest,
-                    shadowElevation = 2.dp
+                    color    = HomeFrameSurface,
+                    border   = BorderStroke(1.dp, HomeFrameBorder.copy(alpha = 0.55f)),
+                    shadowElevation = 6.dp
                 ) {
                     Column(modifier = Modifier.fillMaxWidth()) {
                         if (recentTransactions.isEmpty()) {
@@ -100,3 +103,11 @@ fun HomeScreen(
         }
     }
 }
+
+private val HomeBackgroundBrush = Brush.verticalGradient(
+    colorStops = arrayOf(
+        0.0f to HomeBackgroundTop,
+        0.36f to HomeBackgroundMid,
+        1.0f to HomeBackgroundBottom
+    )
+)

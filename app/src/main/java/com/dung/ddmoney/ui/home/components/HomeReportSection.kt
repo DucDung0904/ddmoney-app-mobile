@@ -4,9 +4,12 @@ import android.graphics.Paint
 import android.graphics.Typeface
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -27,6 +30,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -67,7 +72,7 @@ fun HomeReportSection(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 12.dp)
+            .padding(horizontal = 12.dp, vertical = 12.dp)
     ) {
         // ── Section Label ─────────────────────────────────────────────────────
         Text(
@@ -81,9 +86,10 @@ fun HomeReportSection(
         // ── Main Card ─────────────────────────────────────────────────────────
         Surface(
             modifier        = Modifier.fillMaxWidth(),
-            shape           = RoundedCornerShape(24.dp),
-            color           = LuminousSurfaceContainerLowest,
-            shadowElevation = 2.dp
+            shape           = RoundedCornerShape(28.dp),
+            color           = HomeFrameSurface,
+            border          = BorderStroke(1.dp, HomeFrameBorder.copy(alpha = 0.55f)),
+            shadowElevation = 6.dp
         ) {
             Column(
                 modifier = Modifier
@@ -162,20 +168,28 @@ private fun PeriodSelector(
     selected: ReportPeriod,
     onSelect: (ReportPeriod) -> Unit
 ) {
-    BoxWithConstraints(
+    val periods = ReportPeriod.values()
+    val density = LocalDensity.current
+    var selectorWidthPx by remember { mutableStateOf(0) }
+    val segmentWidth =
+        with(density) { (selectorWidthPx.toFloat() / periods.size).toDp() }
+
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(48.dp)
+            .onSizeChanged { selectorWidthPx = it.width }
             .clip(RoundedCornerShape(18.dp))
             .background(LuminousSurfaceContainerLow)
             .padding(4.dp)
     ) {
-        val periods = ReportPeriod.values()
         val selectedIndex = periods.indexOf(selected).coerceAtLeast(0)
-        val segmentWidth = maxWidth / periods.size.toFloat()
         val indicatorOffset by animateDpAsState(
             targetValue = segmentWidth * selectedIndex.toFloat(),
-            animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioNoBouncy,
+                stiffness = Spring.StiffnessMediumLow
+            ),
             label = "home_period_selector_offset"
         )
 
@@ -191,12 +205,22 @@ private fun PeriodSelector(
         Row(modifier = Modifier.fillMaxWidth()) {
             periods.forEach { period ->
                 val isActive = selected == period
+                val interactionSource = remember(period) { MutableInteractionSource() }
+                val textColor by animateColorAsState(
+                    targetValue = if (isActive) Color.White else NeutralGray600,
+                    animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+                    label = "home_period_${period.name}_text_color"
+                )
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
                         .clip(RoundedCornerShape(15.dp))
-                        .clickable { onSelect(period) }
+                        .clickable(
+                            interactionSource = interactionSource,
+                            indication = null,
+                            onClick = { onSelect(period) }
+                        )
                         .padding(vertical = 10.dp),
                     contentAlignment = Alignment.Center
                 ) {
@@ -204,7 +228,7 @@ private fun PeriodSelector(
                         text       = period.label,
                         fontSize   = 14.sp,
                         fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
-                        color      = if (isActive) Color.White else NeutralGray600
+                        color      = textColor
                     )
                 }
             }
@@ -472,23 +496,31 @@ private fun SpendingDeltaBadge(report: com.dung.ddmoney.ui.analytics.ExpenseRepo
     val isLower = difference < 0.0
     val valueColor =
         when {
+            !report.hasPreviousPeriodData -> NeutralGray600
             isHigher -> ExpenseRed600
             isLower -> SavingsTeal600
             else -> NeutralGray600
         }
     val backgroundColor =
         when {
+            !report.hasPreviousPeriodData -> NeutralGray50
             isHigher -> ExpenseRed50
             isLower -> SavingsTeal50
             else -> NeutralGray50
         }
     val valueText =
         when {
+            !report.hasPreviousPeriodData -> "Chưa có"
             isHigher -> "+${compactMoney(difference)}"
             isLower -> "-${compactMoney(-difference)}"
             else -> "0"
         }
-    val label = "so với ${report.previousLabel.lowercase()}"
+    val label =
+        if (report.hasPreviousPeriodData) {
+            "so với ${report.previousLabel.lowercase()}"
+        } else {
+            "dữ liệu ${report.previousLabel.lowercase()}"
+        }
 
     Column(
         modifier = Modifier

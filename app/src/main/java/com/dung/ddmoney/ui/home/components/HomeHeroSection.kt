@@ -55,9 +55,9 @@ internal fun HomeHeroSection(
                 .background(
                     Brush.verticalGradient(
                         colorStops = arrayOf(
-                            0.0f to Color(0xFF0D3B8E),  // deep navy
-                            0.5f to Color(0xFF1565C0),  // rich blue
-                            1.0f to Color(0xFF42A5F5)   // sky blue
+                            0.0f to Color(0xFF0B428F),
+                            0.52f to Color(0xFF176FBE),
+                            1.0f to Color(0xFF43A9F4)
                         )
                     )
                 )
@@ -98,8 +98,8 @@ internal fun HomeHeroSection(
                         Brush.verticalGradient(
                             listOf(
                                 Color.Transparent,
-                                LuminousBackground.copy(alpha = 0.55f),
-                                LuminousBackground
+                                HomeBackgroundTop.copy(alpha = 0.58f),
+                                HomeBackgroundMid
                             )
                         )
                     )
@@ -131,11 +131,11 @@ private fun HomeSearchBar() {
         modifier = Modifier
             .fillMaxWidth()
             .statusBarsPadding()
-            .padding(horizontal = 16.dp)
+            .padding(horizontal = 12.dp)
             .padding(bottom = 12.dp)
             .height(46.dp)
             .clip(RoundedCornerShape(50))
-            .background(Color.White.copy(alpha = 0.22f))
+            .background(Color(0xFFEAF5FF).copy(alpha = 0.25f))
             .clickable { }
     ) {
         Row(
@@ -188,10 +188,10 @@ private fun BalanceSummaryCard(
     Surface(
         modifier       = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp),
-        shape          = RoundedCornerShape(24.dp),
-        color          = LuminousSurfaceContainerLowest,
-        shadowElevation = 12.dp
+            .padding(horizontal = 12.dp),
+        shape          = RoundedCornerShape(26.dp),
+        color          = HomeFrameSurface,
+        shadowElevation = 14.dp
     ) {
         Column(
             modifier = Modifier

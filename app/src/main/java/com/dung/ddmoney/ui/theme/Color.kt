@@ -90,6 +90,13 @@ val LuminousOnSurface             = Color(0xFF181C20)
 val LuminousOnSurfaceVariant      = NeutralGray600      // #888780
 val LuminousInverseOnSurface      = Color(0xFFEFF1F7)
 
+// Home surface treatment: soft blue canvas + raised white frames, without patterns.
+val HomeBackgroundTop             = Color(0xFFE8F3FD)
+val HomeBackgroundMid             = Color(0xFFF8FBFE)
+val HomeBackgroundBottom          = Color(0xFFEEF4FA)
+val HomeFrameSurface              = Color(0xFFFBFEFF)
+val HomeFrameBorder               = Color(0xFFE1ECF6)
+
 // ─── Ocean Blue Nav Palette (BottomNavBar) ───────────────────────────────────
 val OceanNavActive   = OceanBlue600    // active icon / label
 val OceanNavPill     = OceanBlue100    // active pill background tint

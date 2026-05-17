@@ -18,11 +18,11 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.layout.Row
@@ -54,6 +54,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -71,6 +72,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -284,7 +286,6 @@ fun ExpenseBreakdownDialog(report: ExpenseReport, onDismiss: () -> Unit) {
                                             breakdown = targetBreakdown,
                                             onBack = {
                                                 detailCategoryId = null
-                                                selectedCategoryId = null
                                                 scope.launch { scrollState.animateScrollTo(0) }
                                             },
                                             modifier = Modifier.fillMaxWidth()
@@ -380,13 +381,19 @@ private fun DonutBreakdownChart(
     val visibleCategories = categories.take(6)
     val totalVisiblePercentage = visibleCategories.sumOf { it.percentage.toDouble() }.toFloat()
     val normalizeFactor = if (totalVisiblePercentage > 0f) 1f / totalVisiblePercentage else 1f
+    val revealProgress = remember(visibleCategories.map { it.id }) { Animatable(0f) }
+    var chartRotationDegrees by remember { mutableStateOf(0f) }
+    val currentRotationDegrees by rememberUpdatedState(chartRotationDegrees)
 
-    val animatedProgress by
-            animateFloatAsState(
-                    targetValue = 1f,
-                    animationSpec = tween(800, easing = FastOutSlowInEasing),
-                    label = "expense_donut_progress"
-            )
+    LaunchedEffect(visibleCategories.map { it.id to it.amount }) {
+        revealProgress.snapTo(0f)
+        revealProgress.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(1050, easing = FastOutSlowInEasing)
+        )
+    }
+
+    val animatedProgress = revealProgress.value
 
     val selectedIndex = visibleCategories.indexOfFirst { it.id == selectedCategoryId }
 
@@ -423,21 +430,32 @@ private fun DonutBreakdownChart(
                     label = "center_label_alpha"
             )
 
-    BoxWithConstraints(modifier = modifier, contentAlignment = Alignment.Center) {
-        val density = LocalDensity.current
+    val density = LocalDensity.current
+    var chartBoxWidthPx by remember { mutableStateOf(0) }
+    var chartBoxHeightPx by remember { mutableStateOf(0) }
 
+    Box(
+            modifier =
+                    modifier.onSizeChanged {
+                        chartBoxWidthPx = it.width
+                        chartBoxHeightPx = it.height
+                    },
+            contentAlignment = Alignment.Center
+    ) {
+        if (chartBoxWidthPx == 0 || chartBoxHeightPx == 0) return@Box
         // Chart occupies 80% of the available square so badges have room
-        val canvasSizeDp = minOf(this.maxWidth, this.maxHeight)
+        val canvasSizeDp = with(density) { minOf(chartBoxWidthPx, chartBoxHeightPx).toDp() }
         val chartSizeDp  = canvasSizeDp * 0.80f
         val chartSizePx  = with(density) { chartSizeDp.toPx() }
         val strokeWidthDp = 62.dp
         val strokeWidthPx = with(density) { strokeWidthDp.toPx() }
         val liftDp = 14.dp
+        val rotationDegrees = chartRotationDegrees
 
         Canvas(
                 modifier = Modifier
                         .size(canvasSizeDp)
-                        .pointerInput(visibleCategories) {
+                        .pointerInput(visibleCategories, chartSizePx, strokeWidthPx, normalizeFactor) {
                             detectTapGestures { offset ->
                                 val tappedIndex = findTappedDonutSegment(
                                         offset         = offset,
@@ -446,12 +464,52 @@ private fun DonutBreakdownChart(
                                         categories     = visibleCategories,
                                         chartSizePx    = chartSizePx,
                                         strokeWidthPx  = strokeWidthPx,
-                                        normalizeFactor = normalizeFactor
+                                        normalizeFactor = normalizeFactor,
+                                        rotationDegrees = currentRotationDegrees
                                 )
                                 if (tappedIndex != null) {
                                     onCategorySelected(visibleCategories[tappedIndex])
                                 }
                             }
+                        }
+                        .pointerInput(Unit) {
+                            var previousAngle: Float? = null
+                            detectDragGestures(
+                                    onDragStart = { offset ->
+                                        previousAngle =
+                                                touchAngleDegrees(
+                                                        offset = offset,
+                                                        center =
+                                                                Offset(
+                                                                        size.width / 2f,
+                                                                        size.height / 2f
+                                                                )
+                                                )
+                                    },
+                                    onDrag = { change, _ ->
+                                        val center =
+                                                Offset(size.width / 2f, size.height / 2f)
+                                        val newAngle =
+                                                touchAngleDegrees(
+                                                        offset = change.position,
+                                                        center = center
+                                                )
+                                        previousAngle?.let { oldAngle ->
+                                            chartRotationDegrees =
+                                                    normalizeDegrees(
+                                                            chartRotationDegrees +
+                                                                    shortestAngleDelta(
+                                                                            oldAngle,
+                                                                            newAngle
+                                                                    )
+                                                    )
+                                        }
+                                        previousAngle = newAngle
+                                        change.consume()
+                                    },
+                                    onDragEnd = { previousAngle = null },
+                                    onDragCancel = { previousAngle = null }
+                            )
                         }
         ) {
             val center     = Offset(size.width / 2f, size.height / 2f)
@@ -459,7 +517,7 @@ private fun DonutBreakdownChart(
             val innerHoleR = arcRadius - strokeWidthPx / 2f        // inner edge of ring
 
             // ── 1. Draw each segment ────────────────────────────────────────────────
-            var startAngle = -90f
+            var startAngle = -90f + rotationDegrees
             visibleCategories.forEachIndexed { index, category ->
                 val normPct  = category.percentage * normalizeFactor
                 val sweep    = normPct.coerceIn(0f, 1f) * 360f * animatedProgress
@@ -531,7 +589,7 @@ private fun DonutBreakdownChart(
                 val sweep   = normPct.coerceIn(0f, 1f) * 360f * animatedProgress
 
                 // Recompute startAngle for the selected segment
-                var selStart = -90f
+                var selStart = -90f + rotationDegrees
                 for (i in 0 until selectedIndex) {
                     val p = visibleCategories[i].percentage * normalizeFactor
                     selStart += p.coerceIn(0f, 1f) * 360f * animatedProgress
@@ -564,16 +622,21 @@ private fun DonutBreakdownChart(
         }
 
         // ── 4. Icon badges positioned outside the ring ───────────────────────────
-        var badgeStart = -90f
+        var badgeStart = -90f + rotationDegrees
         visibleCategories.forEachIndexed { index, category ->
             val normPct   = category.percentage * normalizeFactor
             val sweep     = normPct.coerceIn(0f, 1f) * 360f
             val midAngle  = Math.toRadians((badgeStart + sweep / 2f).toDouble())
 
             val liftProgress  = segmentLiftAnimations[index].value
-            val badgeOuterDp  = chartSizeDp / 2f + 18.dp
-            val liftExtra     = liftDp * liftProgress
-            val totalRadiusDp = badgeOuterDp + liftExtra
+            val totalRadiusPx =
+                    chartSizePx / 2f +
+                            with(density) { 18.dp.toPx() } +
+                            with(density) { liftDp.toPx() } * liftProgress
+            val badgeOffsetX =
+                    with(density) { (cos(midAngle).toFloat() * totalRadiusPx).toDp() }
+            val badgeOffsetY =
+                    with(density) { (sin(midAngle).toFloat() * totalRadiusPx).toDp() }
 
             CategoryIconBadge(
                     category = category,
@@ -581,8 +644,8 @@ private fun DonutBreakdownChart(
                     modifier = Modifier
                             .align(Alignment.Center)
                             .offset(
-                                    x = (cos(midAngle) * totalRadiusDp.value).dp,
-                                    y = (sin(midAngle) * totalRadiusDp.value).dp
+                                    x = badgeOffsetX,
+                                    y = badgeOffsetY
                             )
             )
             badgeStart += sweep
@@ -850,15 +913,20 @@ private fun ChildBreakdownRow(child: CategoryExpense) {
 
 @Composable
 private fun BreakdownRow(category: CategoryExpense, isSelected: Boolean, onClick: () -> Unit) {
-    val rowColor by
+    val borderColor by
             animateColorAsState(
-                    targetValue = if (isSelected) Color(0xFFF1EBFD) else Color.Transparent,
+                    targetValue =
+                            if (isSelected) {
+                                OceanBlue400.copy(alpha = 0.72f)
+                            } else {
+                                Color.Transparent
+                            },
                     animationSpec = tween(320, easing = FastOutSlowInEasing),
-                    label = "breakdown_row_color"
+                    label = "breakdown_row_border_color"
             )
     val horizontalPadding by
             animateDpAsState(
-                    targetValue = if (isSelected) 10.dp else 0.dp,
+                    targetValue = if (isSelected) 8.dp else 0.dp,
                     animationSpec = tween(320, easing = FastOutSlowInEasing),
                     label = "breakdown_row_padding"
             )
@@ -866,28 +934,26 @@ private fun BreakdownRow(category: CategoryExpense, isSelected: Boolean, onClick
     Column(
             modifier =
                     Modifier.fillMaxWidth()
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                            .clip(RoundedCornerShape(18.dp))
                             .clickable(onClick = onClick)
                             .drawBehind {
-                                drawRect(rowColor)
                                 if (isSelected) {
-                                    val dotRadius = 1.dp.toPx()
-                                    val spacing = 8.dp.toPx()
-                                    var x = 0f
-                                    while (x < size.width) {
-                                        var y = 0f
-                                        while (y < size.height) {
-                                            drawCircle(
-                                                    color = Color(0xFFDCD0F8).copy(alpha = 0.6f),
-                                                    radius = dotRadius,
-                                                    center = Offset(x, y)
-                                            )
-                                            y += spacing
-                                        }
-                                        x += spacing
-                                    }
+                                    val strokeWidth = 1.4.dp.toPx()
+                                    drawRoundRect(
+                                            color = borderColor,
+                                            topLeft = Offset(strokeWidth / 2f, strokeWidth / 2f),
+                                            size =
+                                                    Size(
+                                                            width = size.width - strokeWidth,
+                                                            height = size.height - strokeWidth
+                                                    ),
+                                            style = Stroke(width = strokeWidth),
+                                            cornerRadius = CornerRadius(18.dp.toPx())
+                                    )
                                 }
                             }
-                            .padding(horizontal = horizontalPadding + 10.dp)
+                            .padding(horizontal = horizontalPadding + 12.dp)
     ) {
         Row(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp),
@@ -921,14 +987,6 @@ private fun BreakdownRow(category: CategoryExpense, isSelected: Boolean, onClick
                 )
             }
         }
-
-        Box(
-                modifier =
-                        Modifier.fillMaxWidth()
-                                .height(1.dp)
-                                .padding(start = 48.dp)
-                                .background(NeutralGray100.copy(alpha = 0.45f))
-        )
     }
 }
 
@@ -977,6 +1035,27 @@ private fun formatPercent(value: Float): String {
     }
 }
 
+private fun touchAngleDegrees(offset: Offset, center: Offset): Float {
+    return normalizeDegrees(
+            Math.toDegrees(
+                            atan2(
+                                            y = offset.y - center.y,
+                                            x = offset.x - center.x
+                                    )
+                                    .toDouble()
+                    )
+                    .toFloat()
+    )
+}
+
+private fun normalizeDegrees(degrees: Float): Float {
+    return ((degrees % 360f) + 360f) % 360f
+}
+
+private fun shortestAngleDelta(from: Float, to: Float): Float {
+    return ((to - from + 540f) % 360f) - 180f
+}
+
 private fun findTappedDonutSegment(
         offset: Offset,
         canvasWidth: Float,
@@ -984,7 +1063,8 @@ private fun findTappedDonutSegment(
         categories: List<CategoryExpense>,
         chartSizePx: Float,
         strokeWidthPx: Float,
-        normalizeFactor: Float
+        normalizeFactor: Float,
+        rotationDegrees: Float
 ): Int? {
     val center = Offset(canvasWidth / 2f, canvasHeight / 2f)
     val dx = offset.x - center.x
@@ -997,11 +1077,12 @@ private fun findTappedDonutSegment(
     if (distance < innerRadius - 18f || distance > outerRadius + 18f) return null
 
     val tapAngle = ((Math.toDegrees(atan2(dy, dx).toDouble()) + 450.0) % 360.0).toFloat()
+    val adjustedTapAngle = normalizeDegrees(tapAngle - rotationDegrees)
     var startAngle = 0f
     categories.forEachIndexed { index, category ->
         val normalizedPercentage = category.percentage * normalizeFactor
         val sweep = normalizedPercentage.coerceIn(0f, 1f) * 360f
-        if (tapAngle >= startAngle && tapAngle <= startAngle + sweep) {
+        if (adjustedTapAngle >= startAngle && adjustedTapAngle <= startAngle + sweep) {
             return index
         }
         startAngle += sweep

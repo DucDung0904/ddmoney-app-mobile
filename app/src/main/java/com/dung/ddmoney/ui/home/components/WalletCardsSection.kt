@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -101,10 +102,11 @@ internal fun WalletCardsSection(
         Surface(
             modifier        = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp),
+                .padding(horizontal = 4.dp),
             shape           = RoundedCornerShape(28.dp),
-            color           = LuminousSurfaceContainerLowest,
-            shadowElevation = 4.dp
+            color           = HomeFrameSurface,
+            border          = BorderStroke(1.dp, HomeFrameBorder.copy(alpha = 0.55f)),
+            shadowElevation = 7.dp
         ) {
             Column(
                 modifier = Modifier
@@ -144,7 +146,7 @@ internal fun WalletCardsSection(
                             .width(40.dp)
                             .background(
                                 Brush.horizontalGradient(
-                                    colors = listOf(LuminousSurfaceContainerLowest, Color.Transparent)
+                                    colors = listOf(HomeFrameSurface, Color.Transparent)
                                 )
                             )
                     )
@@ -156,7 +158,7 @@ internal fun WalletCardsSection(
                             .width(40.dp)
                             .background(
                                 Brush.horizontalGradient(
-                                    colors = listOf(Color.Transparent, LuminousSurfaceContainerLowest)
+                                    colors = listOf(Color.Transparent, HomeFrameSurface)
                                 )
                             )
                     )
