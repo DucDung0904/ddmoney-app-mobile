@@ -19,6 +19,7 @@ import com.dung.ddmoney.ui.components.CategoryIcon
 import com.dung.ddmoney.ui.dashboard.model.Transaction
 import com.dung.ddmoney.ui.dashboard.model.TransactionType
 import com.dung.ddmoney.ui.theme.*
+import com.dung.ddmoney.ui.components.formatMoneyDisplay
 import java.time.format.DateTimeFormatter
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -106,7 +107,7 @@ internal fun TransactionPill(
                 Text(
                     text = if (isVisible) {
                         (if (transaction.type == TransactionType.INCOME) "+" else "-") +
-                            " ${String.format("%,.0f", transaction.amount)} đ"
+                            " ${formatMoneyDisplay(transaction.amount)}"
                     } else "•••••• đ",
                     fontSize   = 15.sp,
                     fontWeight = FontWeight.Black,

@@ -1,8 +1,8 @@
 package com.dung.ddmoney.ui.dashboard.model
 
 import androidx.compose.ui.graphics.Color
-import com.dung.ddmoney.category.DefaultCategorySeed
-import com.dung.ddmoney.category.DefaultCategorySpec
+import com.dung.ddmoney.ui.home.components.DefaultCategorySeed
+import com.dung.ddmoney.ui.home.components.DefaultCategorySpec
 import com.dung.ddmoney.ui.theme.*
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -109,13 +109,23 @@ data class Wallet(
     val creditLimit: Double? = null,
     val currentDebt: Double? = null,
     val billingDay: Int? = null,
-    val paymentDueDay: Int? = null
+    val paymentDueDay: Int? = null,
+    // Savings wallet specific
+    val targetAmount: Double? = null,
+    val targetDate: LocalDate? = null
 ) {
     /** Available balance: for credit cards = limit - debt, else normal balance */
     val availableBalance: Double get() = when (type) {
         WalletType.CREDIT_CARD -> (creditLimit ?: 0.0) - (currentDebt ?: 0.0)
         else -> balance
     }
+
+    val savingsProgress: Float
+        get() {
+            val target = targetAmount ?: return 0f
+            if (target <= 0.0) return 0f
+            return (balance / target).toFloat().coerceIn(0f, 1f)
+        }
 }
 
 // ─── Monthly Summary ──────────────────────────────────────────────────

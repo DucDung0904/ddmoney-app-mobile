@@ -19,7 +19,6 @@ import com.dung.ddmoney.repository.WalletRepository
 import com.dung.ddmoney.ui.dashboard.model.*
 import com.dung.ddmoney.ui.theme.*
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -56,7 +55,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val walletRepo = WalletRepository(api, db.walletDao())
     private val categoryRepo = CategoryRepository(api, db.categoryDao())
     private val transactionRepo = TransactionRepository(api, db.transactionDao(), application)
-    private val budgetRepo = BudgetRepository(api, db.budgetDao(), db.transactionDao(), db.categoryDao())
+    private val budgetRepo =
+            BudgetRepository(api, db.budgetDao(), db.transactionDao(), db.categoryDao())
 
     // Loading & error state (tách riêng để không làm mất reactive state)
     private val _isLoading = MutableStateFlow(false)
@@ -94,7 +94,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
      * - Có token & đã onboarding → MAIN
      */
     fun resolveStartDestination(): String {
-        val hasToken = !tokenManager.getToken().isNullOrBlank()
+        val hasToken = tokenManager.hasValidToken()
         return when {
             !hasToken -> "welcome"
             !tokenManager.isOnboardingDone() -> "onboarding"
@@ -121,7 +121,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                             balance = walletBalance,
                             type = walletType.name,
                             bankName = null,
-                            colorHex = com.dung.ddmoney.ui.wallets.WalletIconMap.colorHexFor(walletType),
+                            colorHex =
+                                    com.dung.ddmoney.ui.wallets.WalletIconMap.colorHexFor(
+                                            walletType
+                                    ),
                             icon = walletIcon,
                             currency = currency,
                             isDefault = true
@@ -196,6 +199,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     val authLoading: StateFlow<Boolean> = _authLoading.asStateFlow()
 
     init {
+        RetrofitClient.setUnauthorizedHandler { expireSession() }
         if (_isLoggedIn.value) {
             syncAll()
         }
@@ -217,7 +221,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                                         avatarUrl = tokenManager.getUserAvatar()
                                 )
 
-                        var isNewUser = true
+                        var isNewUser = false
                         try {
                             val token = tokenManager.getToken()
                             if (token != null) {
@@ -261,7 +265,105 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                         }
                         onSuccess(isNewUser)
                     }
-                    .onFailure { e -> _error.value = "Đăng nhập thất bại: ${e.message}" }
+                    .onFailure { e ->
+                        val msg = e.message ?: ""
+                        if (msg.contains("HTTP 400") || msg.contains("HTTP 401")) {
+                            if (msg.contains("invalid", ignoreCase = true) &&
+                                            msg.contains("email", ignoreCase = true)
+                            ) {
+                                _error.value = "Email không hợp lệ."
+                            } else {
+                                _error.value = "Email hoặc mật khẩu không đúng."
+                            }
+                        } else {
+                            _error.value = "Đăng nhập thất bại: ${e.message}"
+                        }
+                    }
+            _authLoading.value = false
+        }
+    }
+
+    fun loginWithGoogle(idToken: String, onSuccess: (isNewUser: Boolean) -> Unit) {
+        viewModelScope.launch {
+            _authLoading.value = true
+            _error.value = null
+            authRepo.loginWithGoogle(idToken)
+                    .onSuccess {
+                        _isLoggedIn.value = true
+                        _currentUserId.value = tokenManager.getUserId()
+                        _userInfo.value =
+                                UserInfo(
+                                        name = tokenManager.getUserName(),
+                                        email = tokenManager.getUserEmail(),
+                                        avatarUrl = tokenManager.getUserAvatar()
+                                )
+
+                        var isNewUser = false
+                        try {
+                            val token = tokenManager.getToken()
+                            if (token != null) {
+                                val split = token.split(".")
+                                if (split.size >= 2) {
+                                    val payload =
+                                            String(
+                                                    android.util.Base64.decode(
+                                                            split[1],
+                                                            android.util.Base64.URL_SAFE
+                                                    )
+                                            )
+                                    val jsonObject = org.json.JSONObject(payload)
+                                    if (jsonObject.has("new")) {
+                                        isNewUser = jsonObject.getBoolean("new")
+                                    } else if (jsonObject.has("isNew")) {
+                                        isNewUser = jsonObject.getBoolean("isNew")
+                                    }
+                                }
+                            }
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+
+                        if (!isNewUser) {
+                            tokenManager.setOnboardingDone(true)
+                            _isOnboardingDone.value = true
+                        }
+
+                        syncAll()
+
+                        viewModelScope.launch {
+                            authRepo.fetchCurrentUser().onSuccess {
+                                _userInfo.value =
+                                        UserInfo(
+                                                name = tokenManager.getUserName(),
+                                                email = tokenManager.getUserEmail(),
+                                                avatarUrl = tokenManager.getUserAvatar()
+                                        )
+                            }
+                        }
+
+                        onSuccess(isNewUser)
+                    }
+                    .onFailure { e ->
+                        var serverMessage = ""
+                        if (e is retrofit2.HttpException) {
+                            try {
+                                val errorBody = e.response()?.errorBody()?.string()
+                                if (errorBody != null) {
+                                    serverMessage = " - Server: $errorBody"
+                                }
+                            } catch (ignore: Exception) {}
+                        }
+                        val msg = e.message ?: ""
+                        if (msg.contains("hủy")) {
+                            _error.value = "Đăng nhập Google bị hủy."
+                        } else if (msg.contains("HTTP 400") || msg.contains("HTTP 401")) {
+                            _error.value = "Xác thực Google thất bại.$serverMessage"
+                        } else if (msg.contains("Network") || msg.contains("Connect")) {
+                            _error.value = "Không thể kết nối máy chủ."
+                        } else {
+                            _error.value = "Không thể đăng nhập Google: ${e.message}$serverMessage"
+                        }
+                    }
             _authLoading.value = false
         }
     }
@@ -271,17 +373,37 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             _authLoading.value = true
             _error.value = null
             authRepo.register(req).onSuccess { onSuccess() }.onFailure { e ->
-                _error.value = "Đăng ký thất bại: ${e.message}"
+                val msg = e.message ?: ""
+                if (msg.contains("HTTP 400") || msg.contains("HTTP 409")) {
+                    if (msg.contains("email", ignoreCase = true)) {
+                        _error.value = "Email đã tồn tại hoặc không hợp lệ."
+                    } else {
+                        _error.value = "Thông tin đăng ký không hợp lệ."
+                    }
+                } else {
+                    _error.value = "Đăng ký thất bại: ${e.message}"
+                }
             }
             _authLoading.value = false
         }
     }
 
     fun logout() {
+        clearSession(showExpiredMessage = false)
+    }
+
+    private fun expireSession() {
+        clearSession(showExpiredMessage = true)
+    }
+
+    private fun clearSession(showExpiredMessage: Boolean) {
         authRepo.logout()
         _isLoggedIn.value = false
         _currentUserId.value = -1L
         _userInfo.value = UserInfo()
+        if (showExpiredMessage) {
+            _error.value = "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại."
+        }
         // Xóa data local
         viewModelScope.launch {
             db.transactionDao().deleteAll()
@@ -298,14 +420,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             _isLoading.value = true
             _error.value = null
             try {
-                budgetRepo.createBudget(
-                        0L,
-                        name,
-                        amount,
-                        month,
-                        year,
-                        categoryIds
-                )
+                budgetRepo.createBudget(0L, name, amount, month, year, categoryIds)
                 syncAll()
             } catch (e: retrofit2.HttpException) {
                 val errorBody = e.response()?.errorBody()?.string()
@@ -362,11 +477,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             _error.value = null
             try {
                 val syncResults =
-                        listOf(
-                                walletRepo.sync(),
-                                transactionRepo.sync(),
-                                categoryRepo.sync()
-                        )
+                        listOf(walletRepo.sync(), transactionRepo.sync(), categoryRepo.sync())
                 syncResults.firstOrNull { it.isFailure }?.exceptionOrNull()?.let { error ->
                     _error.value = "Không thể đồng bộ toàn bộ dữ liệu: ${error.message}"
                 }
@@ -384,6 +495,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun clearError() {
         _error.value = null
+    }
+
+    fun setError(message: String) {
+        _error.value = message
     }
 
     // ── User / Avatar ──────────────────────────────────────────────────
@@ -421,7 +536,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun createWallet(req: WalletRequest, onComplete: () -> Unit = {}) {
         viewModelScope.launch {
             _isLoading.value = true
-            walletRepo.create(req)
+            walletRepo
+                    .create(req)
                     .onSuccess {
                         onComplete()
                         syncAll()
@@ -439,7 +555,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             _isLoading.value = true
-            walletRepo.update(serverId, req)
+            walletRepo
+                    .update(serverId, req)
                     .onSuccess {
                         onComplete()
                         syncAll()
@@ -451,23 +568,25 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setDefaultWallet(walletId: String) {
         viewModelScope.launch {
-            walletRepo.setDefaultWallet(walletId)
-                    .onFailure { e -> _error.value = "Không thể đặt ví mặc định: ${e.message}" }
+            walletRepo.setDefaultWallet(walletId).onFailure { e ->
+                _error.value = "Không thể đặt ví mặc định: ${e.message}"
+            }
         }
     }
 
     fun archiveWallet(serverId: Long) {
         viewModelScope.launch {
-            walletRepo.delete(serverId)
-                    .onSuccess { syncAll() }
-                    .onFailure { e -> _error.value = "Không thể xóa ví: ${e.message}" }
+            walletRepo.delete(serverId).onSuccess { syncAll() }.onFailure { e ->
+                _error.value = "Không thể xóa ví: ${e.message}"
+            }
         }
     }
 
     fun archiveWallet(walletId: String, onComplete: () -> Unit = {}) {
         viewModelScope.launch {
             _isLoading.value = true
-            walletRepo.archiveWallet(walletId)
+            walletRepo
+                    .archiveWallet(walletId)
                     .onSuccess {
                         onComplete()
                         syncAll()
@@ -480,7 +599,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun unarchiveWallet(walletId: String, onComplete: () -> Unit = {}) {
         viewModelScope.launch {
             _isLoading.value = true
-            walletRepo.unarchiveWallet(walletId)
+            walletRepo
+                    .unarchiveWallet(walletId)
                     .onSuccess {
                         onComplete()
                         syncAll()
@@ -498,7 +618,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     ) {
         viewModelScope.launch {
             _isLoading.value = true
-            walletRepo.transfer(fromWalletId, toWalletId, amount)
+            walletRepo
+                    .transfer(fromWalletId, toWalletId, amount)
                     .onSuccess {
                         onComplete()
                         syncAll()

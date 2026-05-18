@@ -12,10 +12,9 @@ data class RegisterRequest(
 )
 
 data class AuthResponse(
-    val token: String,
-    val userId: Long,
-    val fullName: String,
-    val email: String
+    val accessToken: String,
+    val refreshToken: String,
+    val user: UserResponse
 )
 
 data class UserResponse(
@@ -27,4 +26,14 @@ data class UserResponse(
 
 data class AvatarUpdateRequest(
     val avatarUrl: String
+)
+
+data class GoogleLoginRequest(
+    val idToken: String
+)
+
+data class GoogleAuthResponse(
+    val accessToken: String,
+    val refreshToken: String,
+    val user: UserResponse
 )

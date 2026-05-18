@@ -2,8 +2,10 @@ package com.dung.ddmoney.network
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.util.Base64
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import org.json.JSONObject
 
 class TokenManager(context: Context) {
 
@@ -27,13 +29,41 @@ class TokenManager(context: Context) {
         prefs.edit().putString(KEY_TOKEN, token).apply()
     }
 
+    fun saveRefreshToken(token: String) {
+        prefs.edit().putString(KEY_REFRESH_TOKEN, token).apply()
+    }
+
     fun getToken(): String? {
         return prefs.getString(KEY_TOKEN, null)
+    }
+
+    fun getRefreshToken(): String? {
+        return prefs.getString(KEY_REFRESH_TOKEN, null)
+    }
+
+    fun hasValidToken(): Boolean {
+        val token = getToken() ?: return false
+        if (isTokenExpired(token)) {
+            clearToken()
+            return false
+        }
+        return true
+    }
+
+    fun isTokenExpired(token: String = getToken().orEmpty()): Boolean {
+        if (token.isBlank()) return true
+        return runCatching {
+            val payload = token.split(".").getOrNull(1) ?: return true
+            val json = JSONObject(String(Base64.decode(payload, Base64.URL_SAFE or Base64.NO_WRAP)))
+            val expSeconds = json.optLong("exp", 0L)
+            expSeconds <= 0L || expSeconds * 1000L <= System.currentTimeMillis()
+        }.getOrDefault(true)
     }
 
     fun clearToken() {
         prefs.edit()
             .remove(KEY_TOKEN)
+            .remove(KEY_REFRESH_TOKEN)
             .remove(KEY_USER_ID)
             .remove(KEY_USER_NAME)
             .remove(KEY_USER_EMAIL)
@@ -89,6 +119,7 @@ class TokenManager(context: Context) {
 
     companion object {
         private const val KEY_TOKEN = "jwt_token"
+        private const val KEY_REFRESH_TOKEN = "refresh_token"
         private const val KEY_USER_ID = "user_id"
         private const val KEY_USER_NAME = "user_name"
         private const val KEY_USER_EMAIL = "user_email"

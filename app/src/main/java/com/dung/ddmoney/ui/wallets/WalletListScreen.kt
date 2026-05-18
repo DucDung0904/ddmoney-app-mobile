@@ -9,7 +9,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -30,8 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dung.ddmoney.ui.dashboard.model.*
 import com.dung.ddmoney.ui.theme.*
-import java.text.NumberFormat
-import java.util.Locale
+import com.dung.ddmoney.ui.components.formatMoneyDisplay
 
 private val WALLET_ICON_BOX_SIZE = 38.dp
 private val WALLET_ICON_SIZE = 23.dp
@@ -45,7 +43,9 @@ fun WalletListScreen(
     onWalletClick: (Wallet) -> Unit,
     onUnarchiveWallet: (Wallet) -> Unit = {}
 ) {
-    val activeWallets = wallets.filter { !it.isArchived }
+    val activeWallets = wallets.filter { !it.isArchived }.defaultWalletFirst()
+    val includedWallets = activeWallets.filter { it.isIncludedInTotal }
+    val excludedWallets = activeWallets.filter { !it.isIncludedInTotal }
     val archivedWallets = wallets.filter { it.isArchived }
 
     Scaffold(
@@ -115,8 +115,13 @@ fun WalletListScreen(
                 }
             }
 
-            itemsIndexed(activeWallets) { _, wallet ->
-                WalletDetailItem(wallet = wallet, onClick = { onWalletClick(wallet) })
+            item {
+                ActiveWalletSectionBox(
+                    includedWallets = includedWallets,
+                    excludedWallets = excludedWallets,
+                    emptyText = "Chưa có ví đang hoạt động",
+                    onWalletClick = onWalletClick
+                )
             }
 
             if (archivedWallets.isNotEmpty()) {
@@ -142,17 +147,175 @@ fun WalletListScreen(
                     }
                 }
 
-                itemsIndexed(archivedWallets) { _, wallet ->
-                    WalletDetailItem(
-                        wallet = wallet,
-                        isArchived = true,
-                        onClick = {},
-                        onUnarchive = { onUnarchiveWallet(wallet) }
+                item {
+                    WalletSectionBox(
+                        wallets = archivedWallets,
+                        emptyText = "",
+                        itemContent = { wallet ->
+                            WalletDetailItem(
+                                wallet = wallet,
+                                isArchived = true,
+                                onClick = {},
+                                onUnarchive = { onUnarchiveWallet(wallet) }
+                            )
+                        }
                     )
                 }
             }
             
             item { Spacer(modifier = Modifier.height(80.dp)) }
+        }
+    }
+}
+
+@Composable
+private fun ActiveWalletSectionBox(
+    includedWallets: List<Wallet>,
+    excludedWallets: List<Wallet>,
+    emptyText: String,
+    onWalletClick: (Wallet) -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(6.dp),
+        color = LuminousSurfaceContainerLowest,
+        border = BorderStroke(1.dp, LuminousOutlineVariant.copy(alpha = 0.32f)),
+        shadowElevation = 1.dp
+    ) {
+        if (includedWallets.isEmpty() && excludedWallets.isEmpty()) {
+            Text(
+                text = emptyText,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 18.dp, vertical = 18.dp),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = LuminousOnSurfaceVariant
+            )
+        } else {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                WalletGroup(
+                    title = "Tính vào tổng",
+                    count = includedWallets.size,
+                    wallets = includedWallets,
+                    emptyText = "Chưa có ví tính vào tổng",
+                    onWalletClick = onWalletClick
+                )
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(start = 18.dp, end = 18.dp),
+                    thickness = 1.dp,
+                    color = LuminousOutlineVariant.copy(alpha = 0.55f)
+                )
+
+                WalletGroup(
+                    title = "Không tính vào tổng",
+                    count = excludedWallets.size,
+                    wallets = excludedWallets,
+                    emptyText = "Chưa có ví không tính vào tổng",
+                    onWalletClick = onWalletClick
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun WalletGroup(
+    title: String,
+    count: Int,
+    wallets: List<Wallet>,
+    emptyText: String,
+    onWalletClick: (Wallet) -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        WalletGroupHeader(title = title, count = count)
+
+        if (wallets.isEmpty()) {
+            Text(
+                text = emptyText,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 18.dp, end = 18.dp, bottom = 14.dp),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                color = LuminousOnSurfaceVariant
+            )
+        } else {
+            wallets.forEachIndexed { index, wallet ->
+                WalletDetailItem(wallet = wallet, onClick = { onWalletClick(wallet) })
+                if (index < wallets.lastIndex) {
+                    HorizontalDivider(
+                        modifier = Modifier.padding(start = 68.dp, end = 18.dp),
+                        thickness = 1.dp,
+                        color = LuminousOutlineVariant.copy(alpha = 0.55f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WalletGroupHeader(title: String, count: Int) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 18.dp, end = 18.dp, top = 14.dp, bottom = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = title,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            color = LuminousOnSurfaceVariant
+        )
+        Text(
+            text = "$count ví",
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = LuminousOnSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun WalletSectionBox(
+    wallets: List<Wallet>,
+    emptyText: String,
+    itemContent: @Composable (Wallet) -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(6.dp),
+        color = LuminousSurfaceContainerLowest,
+        border = BorderStroke(1.dp, LuminousOutlineVariant.copy(alpha = 0.32f)),
+        shadowElevation = 1.dp
+    ) {
+        if (wallets.isEmpty()) {
+            Text(
+                text = emptyText,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 18.dp, vertical = 18.dp),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = LuminousOnSurfaceVariant
+            )
+        } else {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                wallets.forEachIndexed { index, wallet ->
+                    itemContent(wallet)
+                    if (index < wallets.lastIndex) {
+                        HorizontalDivider(
+                            modifier = Modifier.padding(start = 68.dp, end = 18.dp),
+                            thickness = 1.dp,
+                            color = LuminousOutlineVariant.copy(alpha = 0.55f)
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -255,15 +418,10 @@ private fun WalletDetailItem(
     onClick: () -> Unit,
     onUnarchive: () -> Unit = {}
 ) {
-    Surface(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(6.dp))
-            .then(if (isArchived) Modifier else Modifier.clickable(onClick = onClick)),
-        shape = RoundedCornerShape(6.dp),
-        color = if (isArchived) LuminousSurfaceContainerLow else LuminousSurfaceContainerLowest,
-        border = BorderStroke(1.dp, LuminousOutlineVariant.copy(alpha = 0.32f)),
-        shadowElevation = 1.dp
+            .then(if (isArchived) Modifier else Modifier.clickable(onClick = onClick))
     ) {
         Row(
             modifier = Modifier
@@ -308,6 +466,13 @@ private fun WalletDetailItem(
                         fontWeight = FontWeight.SemiBold,
                         color = LuminousOnSurfaceVariant
                     )
+                } else if (wallet.isDefault) {
+                    Text(
+                        text = "Mặc định",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = OceanBlue600
+                    )
                 }
             }
 
@@ -347,6 +512,14 @@ private fun WalletDetailItem(
 }
 
 private fun formatWalletAmount(amount: Double): String {
-    val formatter = NumberFormat.getNumberInstance(Locale.forLanguageTag("vi-VN"))
-    return "${formatter.format(amount)} đ"
+    return formatMoneyDisplay(amount)
+}
+
+private fun List<Wallet>.defaultWalletFirst(): List<Wallet> {
+    return mapIndexed { index, wallet -> index to wallet }
+        .sortedWith(
+            compareByDescending<Pair<Int, Wallet>> { it.second.isDefault }
+                .thenBy { it.first }
+        )
+        .map { it.second }
 }

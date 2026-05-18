@@ -1,7 +1,7 @@
 package com.dung.ddmoney.ui.components
 
-import com.dung.ddmoney.category.DefaultCategorySeed
-import com.dung.ddmoney.category.DefaultCategorySpec
+import com.dung.ddmoney.ui.home.components.DefaultCategorySeed
+import com.dung.ddmoney.ui.home.components.DefaultCategorySpec
 import com.dung.ddmoney.ui.dashboard.model.Category
 
 fun List<Category>.withResolvedCategoryHierarchy(): List<Category> {

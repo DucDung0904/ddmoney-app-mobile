@@ -15,12 +15,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dung.ddmoney.parseColor
 import com.dung.ddmoney.ui.theme.*
+import com.dung.ddmoney.ui.components.formatMoneyDisplay
 
 
 @Composable
@@ -147,7 +147,7 @@ private fun OverallBudgetCard(limit: Double, spent: Double, progress: Float) {
             ) {
                 Text("Tổng ngân sách", color = NeutralGray600, fontSize = 15.sp)
                 Text(
-                        String.format("%,.0f đ", limit),
+                        formatMoneyDisplay(limit),
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp,
                         color = MaterialTheme.colorScheme.onBackground
@@ -158,7 +158,7 @@ private fun OverallBudgetCard(limit: Double, spent: Double, progress: Float) {
 
             Text("Đã chi tiêu", color = NeutralGray600, fontSize = 13.sp)
             Text(
-                    String.format("%,.0f đ", spent),
+                    formatMoneyDisplay(spent),
                     fontWeight = FontWeight.ExtraBold,
                     fontSize = 32.sp,
                     color = OceanBlue600
@@ -202,7 +202,7 @@ private fun OverallBudgetCard(limit: Double, spent: Double, progress: Float) {
                         fontSize = 13.sp
                 )
                 Text(
-                        String.format("%,.0f đ", remaining),
+                        formatMoneyDisplay(remaining),
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 14.sp,
                         color = if (spent > limit) ExpenseRed600 else SavingsTeal600
@@ -267,11 +267,7 @@ private fun BudgetCategoryItem(budget: com.dung.ddmoney.repository.BudgetDisplay
                             color = MaterialTheme.colorScheme.onBackground
                     )
                     Text(
-                            String.format(
-                                    "%,.0f đ / %,.0f đ",
-                                    budget.spentAmount,
-                                    budget.amount
-                            ),
+                            "${formatMoneyDisplay(budget.spentAmount)} / ${formatMoneyDisplay(budget.amount)}",
                             color = NeutralGray600,
                             fontSize = 13.sp
                     )
@@ -306,14 +302,14 @@ private fun BudgetCategoryItem(budget: com.dung.ddmoney.repository.BudgetDisplay
             if (isOverBudget) {
                 Text(
                         text =
-                                "Đã vượt quá ngân sách ${String.format("%,.0f", budget.spentAmount - budget.amount)} đ",
+                                "Đã vượt quá ngân sách ${formatMoneyDisplay(budget.spentAmount - budget.amount)}",
                         color = ExpenseRed600,
                         fontSize = 12.sp,
                         modifier = Modifier.padding(top = 8.dp)
                 )
             } else {
                 Text(
-                        text = "Còn lại ${String.format("%,.0f", budget.remaining)} đ",
+                        text = "Còn lại ${formatMoneyDisplay(budget.remaining)}",
                         color = NeutralGray600,
                         fontSize = 12.sp,
                         modifier = Modifier.padding(top = 8.dp)

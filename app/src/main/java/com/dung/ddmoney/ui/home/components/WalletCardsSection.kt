@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -21,8 +22,7 @@ import androidx.compose.ui.unit.sp
 import com.dung.ddmoney.ui.dashboard.model.Wallet
 import com.dung.ddmoney.ui.theme.*
 import com.dung.ddmoney.ui.wallets.WalletIconMap
-import java.text.NumberFormat
-import java.util.Locale
+import com.dung.ddmoney.ui.components.formatMoneyDisplay
 
 // ─── Dimensions ───────────────────────────────────────────────────────────────
 private val WALLET_PANEL_SHAPE = RoundedCornerShape(6.dp)
@@ -35,13 +35,16 @@ private val WALLET_ROW_HEIGHT = 56.dp
 /**
  * Returns at most 3 wallets to show on Home:
  *   slot 0 = default wallet (isDefault == true), or first if none marked
- *   slot 1,2 = the remaining wallets sorted by balance descending
+ *   slot 1,2 = common daily wallets first, then by balance
  */
 internal fun selectDisplayWallets(wallets: List<Wallet>): List<Wallet> {
     if (wallets.isEmpty()) return emptyList()
     val default = wallets.firstOrNull { it.isDefault } ?: wallets.first()
     val others  = wallets.filter { it.id != default.id }
-        .sortedByDescending { it.balance }
+        .sortedWith(
+            compareByDescending<Wallet> { it.type.isQuickAccessDefault }
+                .thenByDescending { it.balance }
+        )
         .take(2)
     return listOf(default) + others
 }
@@ -192,15 +195,35 @@ private fun WalletSummaryRow(
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            Text(
-                text = wallet.name,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = LuminousOnSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
-            )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = wallet.name,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.Black,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+
+                    )
+
+                    if (wallet.isDefault) {
+                        Text(
+                            text = "Mặc định",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = OceanBlue600,
+                            maxLines = 1
+                        )
+                    }
+                }
+            }
 
             Text(
                 text = if (isVisible) formatWalletAmount(wallet.balance) else "•••••• đ",
@@ -259,6 +282,5 @@ private fun EmptyWalletRow(onClick: () -> Unit) {
 }
 
 private fun formatWalletAmount(amount: Double): String {
-    val formatter = NumberFormat.getNumberInstance(Locale.forLanguageTag("vi-VN"))
-    return "${formatter.format(amount)} đ"
+    return formatMoneyDisplay(amount)
 }

@@ -1,7 +1,7 @@
 package com.dung.ddmoney.repository
 
-import com.dung.ddmoney.category.DefaultCategorySeed
-import com.dung.ddmoney.category.DefaultCategorySpec
+import com.dung.ddmoney.ui.home.components.DefaultCategorySeed
+import com.dung.ddmoney.ui.home.components.DefaultCategorySpec
 import com.dung.ddmoney.local.dao.CategoryDao
 import com.dung.ddmoney.local.SyncStatus
 import com.dung.ddmoney.local.entity.CategoryEntity

@@ -19,12 +19,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.dung.ddmoney.ui.components.AppMoneyNumberPadSheet
 import com.dung.ddmoney.ui.components.CategoryIcon
 import com.dung.ddmoney.ui.components.withResolvedCategoryHierarchy
 import com.dung.ddmoney.ui.theme.*
+import com.dung.ddmoney.ui.components.formatMoneyInput
+import com.dung.ddmoney.ui.components.parseMoneyInput
 import java.time.LocalDate
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -36,6 +38,7 @@ fun AddBudgetScreen(
 ) {
     var name by remember { mutableStateOf("") }
     var amountText by remember { mutableStateOf("") }
+    var showAmountPad by remember { mutableStateOf(false) }
     val selectedCategoryIds = remember { mutableStateListOf<Long>() }
     
     val currentDate = LocalDate.now()
@@ -97,17 +100,34 @@ fun AddBudgetScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             // Số tiền
-            OutlinedTextField(
-                value = amountText,
-                onValueChange = { if (it.all { char -> char.isDigit() }) amountText = it },
-                label = { Text("Hạn mức (VND)") },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = OceanBlue600,
-                    unfocusedBorderColor = NeutralGray100
+            Box(modifier = Modifier.fillMaxWidth()) {
+                OutlinedTextField(
+                    value = amountText,
+                    onValueChange = { _: String -> },
+                    readOnly = true,
+                    label = { Text("Hạn mức (VND)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = OceanBlue600,
+                        unfocusedBorderColor = NeutralGray100
+                    )
                 )
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clip(RoundedCornerShape(16.dp))
+                        .clickable { showAmountPad = true }
+                )
+            }
+
+            AppMoneyNumberPadSheet(
+                visible = showAmountPad,
+                amountText = amountText,
+                onAmountChange = { amountText = formatMoneyInput(it) },
+                onDismiss = { showAmountPad = false },
+                title = "Nhập hạn mức"
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -167,7 +187,7 @@ fun AddBudgetScreen(
             // Nút Lưu
             Button(
                 onClick = {
-                    val amount = amountText.toDoubleOrNull() ?: 0.0
+                    val amount = parseMoneyInput(amountText)
                     if (name.isNotBlank() && amount > 0 && selectedCategoryIds.isNotEmpty()) {
                         onSave(name, amount, selectedCategoryIds.toList(), selectedMonth, selectedYear)
                     }
@@ -177,7 +197,9 @@ fun AddBudgetScreen(
                     .height(56.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = OceanBlue600),
-                enabled = name.isNotBlank() && amountText.isNotBlank() && selectedCategoryIds.isNotEmpty()
+                enabled = name.isNotBlank() &&
+                    parseMoneyInput(amountText) > 0.0 &&
+                    selectedCategoryIds.isNotEmpty()
             ) {
                 Text("Lưu ngân sách", fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }

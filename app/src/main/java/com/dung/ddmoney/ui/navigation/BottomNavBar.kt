@@ -17,6 +17,7 @@ import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.Analytics
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -49,8 +50,8 @@ sealed class NavItem(
                     Icons.Outlined.AccountBalanceWallet,
                     Icons.Outlined.AccountBalanceWallet
             )
-    object Analytics :
-            NavItem("analytics", "Báo cáo", Icons.Outlined.Analytics, Icons.Outlined.Analytics)
+    object Ledger :
+            NavItem("ledger", "Sổ chi tiêu", Icons.Outlined.ReceiptLong, Icons.Outlined.ReceiptLong)
     object Profile : NavItem("profile", "Cá nhân", Icons.Outlined.Person, Icons.Outlined.Person)
 }
 
@@ -89,8 +90,8 @@ fun BottomNavBar(currentRoute: String, onNavigate: (String) -> Unit, onAddClick:
 
                 Spacer(modifier = Modifier.width(48.dp)) // Chừa chỗ cho nút Add
 
-                NavBarItem(NavItem.Analytics, currentRoute == NavItem.Analytics.route) {
-                    onNavigate(NavItem.Analytics.route)
+                NavBarItem(NavItem.Ledger, currentRoute == NavItem.Ledger.route) {
+                    onNavigate(NavItem.Ledger.route)
                 }
                 NavBarItem(NavItem.Profile, currentRoute == NavItem.Profile.route) {
                     onNavigate(NavItem.Profile.route)

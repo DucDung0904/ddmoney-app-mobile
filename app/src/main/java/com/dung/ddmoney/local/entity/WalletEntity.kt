@@ -27,6 +27,9 @@ data class WalletEntity(
     val currentDebt: Double? = null,
     val billingDay: Int? = null,
     val paymentDueDay: Int? = null,
+    // Savings wallet specific
+    val targetAmount: Double? = null,
+    val targetDate: String? = null,
     // Metadata
     val syncStatus: SyncStatus = SyncStatus.SYNCED,
     val createdAt: Long = System.currentTimeMillis(),

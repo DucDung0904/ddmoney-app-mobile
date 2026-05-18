@@ -37,7 +37,12 @@ data class WalletResponse(
     @SerializedName(value = "billingDay", alternate = ["billing_day"])
     val billingDay: Int? = null,
     @SerializedName(value = "paymentDueDay", alternate = ["payment_due_day"])
-    val paymentDueDay: Int? = null
+    val paymentDueDay: Int? = null,
+    // Savings wallet fields
+    @SerializedName(value = "targetAmount", alternate = ["target_amount"])
+    val targetAmount: Double? = null,
+    @SerializedName(value = "targetDate", alternate = ["target_date"])
+    val targetDate: String? = null
 )
 
 data class WalletRequest(
@@ -66,7 +71,12 @@ data class WalletRequest(
     @SerializedName(value = "billingDay", alternate = ["billing_day"])
     val billingDay: Int? = null,
     @SerializedName(value = "paymentDueDay", alternate = ["payment_due_day"])
-    val paymentDueDay: Int? = null
+    val paymentDueDay: Int? = null,
+    // Savings wallet fields
+    @SerializedName(value = "targetAmount", alternate = ["target_amount"])
+    val targetAmount: Double? = null,
+    @SerializedName(value = "targetDate", alternate = ["target_date"])
+    val targetDate: String? = null
 )
 
 data class TransferRequest(

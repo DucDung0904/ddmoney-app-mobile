@@ -35,7 +35,7 @@ fun RegisterScreen(
     onRegisterClick: (fullName: String, email: String, password: String) -> Unit,
     onNavigateToLogin: () -> Unit,
     onBack: () -> Unit = {},
-    onGoogleSignIn: () -> Unit = {},
+    onGoogleSignInClick: () -> Unit = {},
     isLoading: Boolean = false,
     errorMessage: String? = null
 ) {
@@ -301,7 +301,7 @@ fun RegisterScreen(
                         .fillMaxWidth()
                         .height(52.dp)
                         .border(1.dp, Color(0xFFE0E2E8), RoundedCornerShape(12.dp))
-                        .clickable { onGoogleSignIn() },
+                        .clickable(enabled = !isLoading) { onGoogleSignInClick() },
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {

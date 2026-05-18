@@ -15,6 +15,7 @@ val OceanBlue100 = Color(0xFFB5D4F4)   // hover tint, subtle fill
 val OceanBlue400 = Color(0xFF378ADD)   // icon accent, underline
 val OceanBlue600 = Color(0xFF185FA5)   // ★ brand anchor — buttons, CTA, border
 val OceanBlue800 = Color(0xFF0C447C)   // header text, pressed state, badge text
+val NumberPadBlue = Color(0xFF2A8BD5)  // money keypad accent requested for shared input
 
 // ─── Income Green — always "positive" ───────────────────────────────────────
 val IncomeGreen50  = Color(0xFFEDF5DB)  // chip background

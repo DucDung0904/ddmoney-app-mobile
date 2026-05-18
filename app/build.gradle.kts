@@ -59,6 +59,7 @@ dependencies {
     implementation(libs.okhttp.logging)
     implementation(libs.gson)
     implementation(libs.koroutines.android)
+    implementation(libs.androidx.ui.graphics)
 
     // Room (SQLite local cache)
     val roomVersion = "2.7.1"
@@ -66,8 +67,7 @@ dependencies {
     implementation("androidx.room:room-ktx:$roomVersion")
     ksp("androidx.room:room-compiler:$roomVersion")
 
-    implementation(platform("com.google.firebase:firebase-bom:34.11.0"))
-    implementation("com.google.firebase:firebase-analytics")
+
 
     // WorkManager (Background Sync)
     implementation("androidx.work:work-runtime-ktx:2.9.0")
@@ -85,7 +85,9 @@ dependencies {
     implementation("com.patrykandpatrick.vico:compose-m3:$vicoVersion")
     implementation("com.patrykandpatrick.vico:core:$vicoVersion")
 
-
+    implementation("androidx.credentials:credentials:1.3.0")
+    implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
+    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
 
 
     testImplementation(libs.junit)

@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dung.ddmoney.ui.dashboard.model.WalletType
 import com.dung.ddmoney.ui.wallets.WalletIconMap
+import com.dung.ddmoney.ui.components.parseMoneyInput
 
 private enum class Currency(
         val code: String,
@@ -127,7 +128,7 @@ fun OnboardingScreen(
                                                 onComplete(
                                                         selectedCurrency.code,
                                                         walletName.ifBlank { "Ví của tôi" },
-                                                        walletBalanceText.toDoubleOrNull() ?: 0.0,
+                                                        parseMoneyInput(walletBalanceText),
                                                         WalletIconMap.toKey(selectedIcon),   // chuyển ImageVector → key string lưu DB
                                                         selectedWalletType
                                                 )

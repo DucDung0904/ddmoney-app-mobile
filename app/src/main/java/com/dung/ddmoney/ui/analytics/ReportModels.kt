@@ -1,12 +1,12 @@
 package com.dung.ddmoney.ui.analytics
 
 import androidx.compose.ui.graphics.Color
-import com.dung.ddmoney.category.DefaultCategorySeed
-import com.dung.ddmoney.category.DefaultCategorySpec
+import com.dung.ddmoney.ui.home.components.DefaultCategorySeed
+import com.dung.ddmoney.ui.home.components.DefaultCategorySpec
 import com.dung.ddmoney.ui.dashboard.model.Category
 import com.dung.ddmoney.ui.dashboard.model.Transaction
 import com.dung.ddmoney.ui.dashboard.model.TransactionType
-import java.text.NumberFormat
+import com.dung.ddmoney.ui.components.formatMoneyDisplay
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -242,8 +242,7 @@ private fun parseReportColor(hex: String): Color =
                 .getOrDefault(Color(0xFF4659A6))
 
 fun formatVnd(amount: Double): String {
-    val formatter = NumberFormat.getNumberInstance(Locale.forLanguageTag("vi-VN"))
-    return "${formatter.format(amount.roundToLong())} đ"
+    return formatMoneyDisplay(amount)
 }
 
 fun comparisonChartAxisMax(vararg amounts: Double): Double {

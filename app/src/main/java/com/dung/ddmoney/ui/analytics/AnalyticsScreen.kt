@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Insights
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -70,6 +71,7 @@ import kotlin.math.abs
 fun AnalyticsScreen(
         transactions: List<Transaction>,
         categories: List<Category> = emptyList(),
+        onDismiss: (() -> Unit)? = null,
         modifier: Modifier = Modifier
 ) {
     var selectedPeriod by remember { mutableStateOf(ReportPeriod.MONTH) }
@@ -92,7 +94,7 @@ fun AnalyticsScreen(
                 contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 28.dp, bottom = 140.dp),
                 verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            item { AnalyticsHeader(report.rangeLabel) }
+            item { AnalyticsHeader(rangeLabel = report.rangeLabel, onDismiss = onDismiss) }
 
             item {
                 AnalyticsSummaryCard(
@@ -121,13 +123,13 @@ fun AnalyticsScreen(
 }
 
 @Composable
-private fun AnalyticsHeader(rangeLabel: String) {
+private fun AnalyticsHeader(rangeLabel: String, onDismiss: (() -> Unit)? = null) {
     Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Column {
+        Column(modifier = Modifier.weight(1f)) {
             Text(
                     text = "BÁO CÁO CHI TIÊU",
                     fontSize = 12.sp,
@@ -142,13 +144,28 @@ private fun AnalyticsHeader(rangeLabel: String) {
             )
         }
 
-        Surface(shape = CircleShape, color = OceanBlue50) {
-            Icon(
-                    imageVector = Icons.Outlined.Insights,
-                    contentDescription = "Báo cáo",
-                    tint = OceanBlue600,
-                    modifier = Modifier.padding(12.dp).size(24.dp)
-            )
+        if (onDismiss != null) {
+            Surface(
+                    shape = CircleShape,
+                    color = NeutralGray100,
+                    modifier = Modifier.clickable(onClick = onDismiss)
+            ) {
+                Icon(
+                        imageVector = Icons.Outlined.Close,
+                        contentDescription = "Đóng báo cáo",
+                        tint = NeutralGray600,
+                        modifier = Modifier.padding(10.dp).size(20.dp)
+                )
+            }
+        } else {
+            Surface(shape = CircleShape, color = OceanBlue50) {
+                Icon(
+                        imageVector = Icons.Outlined.Insights,
+                        contentDescription = "Báo cáo",
+                        tint = OceanBlue600,
+                        modifier = Modifier.padding(12.dp).size(24.dp)
+                )
+            }
         }
     }
 

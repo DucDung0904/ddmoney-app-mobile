@@ -3,6 +3,7 @@ package com.dung.ddmoney.ui.transaction
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -10,7 +11,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardBackspace
 import androidx.compose.material.icons.automirrored.outlined.NavigateNext
 import androidx.compose.material.icons.automirrored.outlined.Subject
 import androidx.compose.material.icons.outlined.*
@@ -20,20 +20,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.dung.ddmoney.ui.components.AppMoneyNumberPadPanel
 import com.dung.ddmoney.ui.components.CategoryIcon
 import com.dung.ddmoney.ui.components.withResolvedCategoryHierarchy
 import com.dung.ddmoney.ui.theme.*
+import com.dung.ddmoney.ui.components.formatMoneyDisplay
+import com.dung.ddmoney.ui.components.formatMoneyInput
+import com.dung.ddmoney.ui.components.parseMoneyInput
+import com.dung.ddmoney.ui.wallets.WalletIconMap
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 // --- Ocean Blue Palette ---
 private val PrimaryOceanBlue = Color(0xFF003CC7)
-private val OceanBlueLight = Color(0xFFEAF1FF)
 private val BackgroundColor = Color(0xFFF4F6FB)
 private val CardSurface = Color(0xFFFAFBFF)
 private val DividerColor = Color(0xFFE6E8EF)
@@ -60,7 +63,9 @@ fun AddTransactionScreen(
 ) {
     var selectedTab by remember { mutableStateOf(0) } // 0: Khoản chi, 1: Khoản thu, 2: Vay/Nợ
     var amountText by remember { mutableStateOf("0") }
-    var selectedWallet by remember { mutableStateOf(wallets.firstOrNull()) }
+    var selectedWallet by remember {
+        mutableStateOf<com.dung.ddmoney.ui.dashboard.model.Wallet?>(null)
+    }
     var selectedCategory by remember {
         mutableStateOf<com.dung.ddmoney.ui.dashboard.model.Category?>(null)
     }
@@ -95,6 +100,13 @@ fun AddTransactionScreen(
 
     // Reset category when tab changes to keep it empty by default
     LaunchedEffect(selectedTab) { selectedCategory = null }
+
+    LaunchedEffect(wallets) {
+        val currentWalletId = selectedWallet?.id
+        if (currentWalletId == null || wallets.none { it.id == currentWalletId }) {
+            selectedWallet = wallets.firstOrNull { it.isDefault } ?: wallets.firstOrNull()
+        }
+    }
 
     if (showDatePicker) {
         DatePickerDialog(
@@ -158,25 +170,27 @@ fun AddTransactionScreen(
                         FormRow(
                                 onClick = { showWalletPicker = true },
                                 icon = {
-                                    Box(
-                                            modifier =
-                                                    Modifier.size(28.dp)
-                                                            .background(
-                                                                    selectedWallet?.color
-                                                                            ?: SecondaryText,
-                                                                    CircleShape
-                                                            ),
-                                            contentAlignment = Alignment.Center
-                                    ) {
+                                    selectedWallet?.let { wallet ->
                                         Box(
                                                 modifier =
-                                                        Modifier.size(10.dp)
-                                                                .background(
-                                                                        Color.White,
-                                                                        RoundedCornerShape(2.dp)
-                                                                )
-                                        )
-                                    }
+                                                        Modifier.size(34.dp)
+                                                                .clip(RoundedCornerShape(9.dp))
+                                                                .background(WalletIconMap.backgroundFor(wallet.type)),
+                                                contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                    imageVector = WalletIconMap.toVector(wallet.icon, wallet.type),
+                                                    contentDescription = null,
+                                                    tint = WalletIconMap.tintFor(wallet.type),
+                                                    modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                    } ?: Icon(
+                                            imageVector = Icons.Outlined.AccountBalanceWallet,
+                                            contentDescription = null,
+                                            tint = SecondaryText.copy(alpha = 0.55f),
+                                            modifier = Modifier.size(24.dp)
+                                    )
                                 },
                                 content = {
                                     Text(
@@ -193,7 +207,10 @@ fun AddTransactionScreen(
                         Row(
                                 modifier =
                                         Modifier.fillMaxWidth()
-                                                .clickable { showNumPad = true }
+                                                .clickable(
+                                                        interactionSource = remember { MutableInteractionSource() },
+                                                        indication = null
+                                                ) { showNumPad = true }
                                                 .padding(vertical = 12.dp),
                                 verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -235,24 +252,27 @@ fun AddTransactionScreen(
                         FormRow(
                                 onClick = { showCategoryPicker = true },
                                 icon = {
-                                    Box(
-                                            modifier =
-                                                    Modifier.size(28.dp)
-                                                            .background(
-                                                                    if (selectedCategory != null)
-                                                                            OceanBlueLight
-                                                                    else Color(0xFFD9D9D9),
-                                                                    CircleShape
-                                                            ),
-                                            contentAlignment = Alignment.Center
-                                    ) {
-                                        if (selectedCategory != null) {
+                                    if (selectedCategory != null) {
+                                        Box(
+                                                modifier =
+                                                        Modifier.size(34.dp)
+                                                                .clip(RoundedCornerShape(9.dp))
+                                                                .background(selectedCategory!!.color.copy(alpha = 0.12f)),
+                                                contentAlignment = Alignment.Center
+                                        ) {
                                             CategoryIcon(
                                                     icon = selectedCategory!!.icon,
-                                                    modifier = Modifier.size(16.dp),
+                                                    modifier = Modifier.size(20.dp),
                                                     tint = selectedCategory!!.color
                                             )
                                         }
+                                    } else {
+                                        Icon(
+                                                imageVector = Icons.Outlined.Category,
+                                                contentDescription = null,
+                                                tint = SecondaryText.copy(alpha = 0.45f),
+                                                modifier = Modifier.size(24.dp)
+                                        )
                                     }
                                 },
                                 content = {
@@ -351,7 +371,7 @@ fun AddTransactionScreen(
                 }
             }
 
-            val amountValue = amountText.toDoubleOrNull() ?: 0.0
+            val amountValue = parseMoneyInput(amountText)
             val canSave = amountValue > 0 && selectedWallet != null && selectedCategory != null
 
             SaveButton(
@@ -377,7 +397,7 @@ fun AddTransactionScreen(
             NumPadOverlay(
                     showNumPad = showNumPad,
                     amountText = amountText,
-                    onAmountChange = { amountText = it },
+                    onAmountChange = { amountText = formatMoneyInput(it, emptyAsZero = true) },
                     onDone = { showNumPad = false }
             )
         }
@@ -511,7 +531,13 @@ private fun FormRow(
         showChevron: Boolean = true
 ) {
     Row(
-            modifier = Modifier.fillMaxWidth().clickable { onClick() }.padding(vertical = 16.dp),
+            modifier =
+                    Modifier.fillMaxWidth()
+                            .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                            ) { onClick() }
+                            .padding(vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
     ) {
         Box(modifier = Modifier.width(44.dp), contentAlignment = Alignment.CenterStart) { icon() }
@@ -628,182 +654,15 @@ private fun NumPadOverlay(
     ) {
         Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = CardSurface,
+                color = LuminousSurfaceContainerLowest,
                 shadowElevation = 16.dp,
                 shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
         ) {
-            Column(modifier = Modifier.padding(bottom = 24.dp)) {
-                Row(
-                        modifier =
-                                Modifier.fillMaxWidth()
-                                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    val suggestions = listOf("20,000", "200,000", "2,000,000", "20m")
-                    suggestions.forEach { sug ->
-                        Surface(
-                                modifier =
-                                        Modifier.weight(1f).clickable {
-                                            onAmountChange(
-                                                    if (sug == "20m") "20000000"
-                                                    else sug.replace(",", "")
-                                            )
-                                        },
-                                shape = RoundedCornerShape(12.dp),
-                                color = OceanBlueLight,
-                        ) {
-                            Text(
-                                    text = sug,
-                                    modifier = Modifier.padding(vertical = 10.dp),
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = PrimaryOceanBlue,
-                                    textAlign = TextAlign.Center
-                            )
-                        }
-                    }
-                }
-
-                CustomNumPad(
-                        onKeyPress = { key ->
-                            when (key) {
-                                "C" -> onAmountChange("0")
-                                "DEL" ->
-                                        if (amountText.length > 1)
-                                                onAmountChange(amountText.dropLast(1))
-                                        else onAmountChange("0")
-                                else ->
-                                        if (amountText == "0" && key != "." && key != "000")
-                                                onAmountChange(key)
-                                        else if (amountText.length < 12)
-                                                onAmountChange(amountText + key)
-                            }
-                        },
-                        onDone = onDone
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun CustomNumPad(onKeyPress: (String) -> Unit, onDone: () -> Unit) {
-    val keys =
-            listOf(
-                    listOf("C", "÷", "×", "DEL"),
-                    listOf("7", "8", "9", "-"),
-                    listOf("4", "5", "6", "+"),
-                    listOf("1", "2", "3", "XONG"),
-                    listOf("0", "000", ".", "XONG")
+            AppMoneyNumberPadPanel(
+                    amountText = amountText,
+                    onAmountChange = onAmountChange,
+                    onDone = onDone
             )
-
-    Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-        Column(modifier = Modifier.weight(3f)) {
-            for (i in 0..3) {
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    for (j in 0..2) {
-                        NumPadButton(
-                                text = keys[i][j],
-                                modifier = Modifier.weight(1f).height(56.dp).padding(4.dp),
-                                onClick = { onKeyPress(keys[i][j]) },
-                                isOperator = keys[i][j] in listOf("C", "÷", "×", "-", "+")
-                        )
-                    }
-                }
-            }
-            Row(modifier = Modifier.fillMaxWidth()) {
-                NumPadButton(
-                        "0",
-                        Modifier.weight(1f).height(56.dp).padding(4.dp),
-                        { onKeyPress("0") }
-                )
-                NumPadButton(
-                        "000",
-                        Modifier.weight(1f).height(56.dp).padding(4.dp),
-                        { onKeyPress("000") }
-                )
-                NumPadButton(
-                        ".",
-                        Modifier.weight(1f).height(56.dp).padding(4.dp),
-                        { onKeyPress(".") }
-                )
-            }
-        }
-        Column(modifier = Modifier.weight(1f)) {
-            NumPadButton(
-                    text = "DEL",
-                    modifier = Modifier.fillMaxWidth().height(56.dp).padding(4.dp),
-                    onClick = { onKeyPress("DEL") },
-                    isOperator = true,
-                    isIcon = true,
-                    icon = Icons.AutoMirrored.Filled.KeyboardBackspace
-            )
-            NumPadButton(
-                    "-",
-                    Modifier.fillMaxWidth().height(56.dp).padding(4.dp),
-                    { onKeyPress("-") },
-                    true
-            )
-            NumPadButton(
-                    "+",
-                    Modifier.fillMaxWidth().height(56.dp).padding(4.dp),
-                    { onKeyPress("+") },
-                    true
-            )
-            Surface(
-                    modifier =
-                            Modifier.fillMaxWidth().height(112.dp).padding(4.dp).clickable {
-                                onDone()
-                            },
-                    shape = RoundedCornerShape(12.dp),
-                    color = PrimaryOceanBlue,
-                    shadowElevation = 2.dp
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(
-                            "XONG",
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun NumPadButton(
-        text: String,
-        modifier: Modifier,
-        onClick: () -> Unit,
-        isOperator: Boolean = false,
-        isIcon: Boolean = false,
-        icon: ImageVector? = null
-) {
-    Surface(
-            modifier = modifier.clickable { onClick() },
-            shape = RoundedCornerShape(12.dp),
-            color = if (isOperator) BackgroundColor else CardSurface,
-            border = if (!isOperator) BorderStroke(1.dp, DividerColor) else null,
-            shadowElevation = if (isOperator) 0.dp else 1.dp
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            if (isIcon && icon != null) {
-                Icon(
-                        imageVector = icon,
-                        contentDescription = text,
-                        tint = PrimaryOceanBlue,
-                        modifier = Modifier.size(24.dp)
-                )
-            } else {
-                Text(
-                        text = text,
-                        fontSize = 22.sp,
-                        fontWeight = if (isOperator) FontWeight.Bold else FontWeight.Medium,
-                        color = if (isOperator) PrimaryOceanBlue else PrimaryText
-                )
-            }
         }
     }
 }
@@ -843,7 +702,10 @@ private fun WalletPickerSheet(
                             modifier =
                                     Modifier.fillMaxWidth()
                                             .clip(RoundedCornerShape(12.dp))
-                                            .clickable {
+                                            .clickable(
+                                                    interactionSource = remember { MutableInteractionSource() },
+                                                    indication = null
+                                            ) {
                                                 onSelect(wallet)
                                                 onDismiss()
                                             }
@@ -853,15 +715,15 @@ private fun WalletPickerSheet(
                         Box(
                                 modifier =
                                         Modifier.size(36.dp)
-                                                .clip(CircleShape)
-                                                .background(wallet.color),
+                                                .clip(RoundedCornerShape(10.dp))
+                                                .background(WalletIconMap.backgroundFor(wallet.type)),
                                 contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                    Icons.Outlined.AccountBalanceWallet,
-                                    null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(18.dp)
+                                    imageVector = WalletIconMap.toVector(wallet.icon, wallet.type),
+                                    contentDescription = null,
+                                    tint = WalletIconMap.tintFor(wallet.type),
+                                    modifier = Modifier.size(21.dp)
                             )
                         }
                         Spacer(modifier = Modifier.width(16.dp))
@@ -873,7 +735,7 @@ private fun WalletPickerSheet(
                                     color = PrimaryText
                             )
                             Text(
-                                    String.format("%,.0f VND", wallet.balance),
+                                    formatMoneyDisplay(wallet.balance, suffix = " VND"),
                                     fontSize = 13.sp,
                                     color = SecondaryText
                             )

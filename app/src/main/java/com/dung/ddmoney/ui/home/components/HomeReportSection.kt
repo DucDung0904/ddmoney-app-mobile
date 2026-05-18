@@ -17,6 +17,9 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ArrowForwardIos
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -53,6 +56,7 @@ import com.dung.ddmoney.ui.theme.*
 fun HomeReportSection(
     transactions: List<Transaction> = emptyList(),
     categories: List<Category> = emptyList(),
+    onViewReport: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var selectedPeriod by remember { mutableStateOf(ReportPeriod.MONTH) }
@@ -75,13 +79,41 @@ fun HomeReportSection(
             .padding(horizontal = 12.dp, vertical = 12.dp)
     ) {
         // ── Section Label ─────────────────────────────────────────────────────
-        Text(
-            text       = "BÁO CÁO CHI TIÊU",
-            fontSize   = 12.sp,
-            fontWeight = FontWeight.Bold,
-            color      = NeutralGray600,
-            modifier   = Modifier.padding(bottom = 12.dp)
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text       = "BÁO CÁO CHI TIÊU",
+                fontSize   = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color      = NeutralGray600
+            )
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable(onClick = onViewReport)
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    text       = "Xem báo cáo",
+                    fontSize   = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color      = OceanBlue600
+                )
+                Icon(
+                    imageVector          = Icons.Outlined.ArrowForwardIos,
+                    contentDescription   = "Xem báo cáo chi tiết",
+                    tint                 = OceanBlue600,
+                    modifier             = Modifier.size(10.dp)
+                )
+            }
+        }
 
         // ── Main Card ─────────────────────────────────────────────────────────
         Surface(

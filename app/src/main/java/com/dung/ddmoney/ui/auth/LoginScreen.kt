@@ -41,7 +41,7 @@ import com.dung.ddmoney.R
 fun LoginScreen(
     onLoginClick: (email: String, password: String) -> Unit,
     onNavigateToRegister: () -> Unit,
-    onGoogleSignIn: () -> Unit = {},
+    onGoogleSignInClick: () -> Unit = {},
     onBack: () -> Unit = {},
     isLoading: Boolean = false,
     errorMessage: String? = null
@@ -225,7 +225,7 @@ fun LoginScreen(
                         .fillMaxWidth()
                         .height(52.dp)
                         .border(1.dp, Color(0xFFE0E2E8), RoundedCornerShape(12.dp))
-                        .clickable { onGoogleSignIn() },
+                        .clickable(enabled = !isLoading) { onGoogleSignInClick() },
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {

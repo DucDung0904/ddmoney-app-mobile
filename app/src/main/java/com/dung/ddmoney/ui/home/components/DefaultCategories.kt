@@ -1,4 +1,4 @@
-package com.dung.ddmoney.category
+package com.dung.ddmoney.ui.home.components
 
 import java.util.Locale
 

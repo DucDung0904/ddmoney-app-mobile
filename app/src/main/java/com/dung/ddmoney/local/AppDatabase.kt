@@ -17,7 +17,7 @@ import com.dung.ddmoney.local.entity.*
         BudgetEntity::class,
         BudgetCategoryEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -37,7 +37,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "ddmoney_db"
                 )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                 .build()
                 INSTANCE = instance
                 instance
@@ -94,6 +94,14 @@ abstract class AppDatabase : RoomDatabase() {
             object : Migration(4, 5) {
                 override fun migrate(db: SupportSQLiteDatabase) {
                     db.execSQL("ALTER TABLE wallets ADD COLUMN isIncludedInTotal INTEGER NOT NULL DEFAULT 1")
+                }
+            }
+
+        private val MIGRATION_5_6 =
+            object : Migration(5, 6) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL("ALTER TABLE wallets ADD COLUMN targetAmount REAL")
+                    db.execSQL("ALTER TABLE wallets ADD COLUMN targetDate TEXT")
                 }
             }
     }

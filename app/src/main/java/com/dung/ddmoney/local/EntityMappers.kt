@@ -39,6 +39,8 @@ fun WalletResponse.toEntity(): WalletEntity = WalletEntity(
     currentDebt = currentDebt,
     billingDay = billingDay,
     paymentDueDay = paymentDueDay,
+    targetAmount = targetAmount,
+    targetDate = targetDate,
     syncStatus = SyncStatus.SYNCED
 )
 
@@ -61,7 +63,11 @@ fun WalletEntity.toModel(): Wallet = Wallet(
     creditLimit = creditLimit,
     currentDebt = currentDebt,
     billingDay = billingDay,
-    paymentDueDay = paymentDueDay
+    paymentDueDay = paymentDueDay,
+    targetAmount = targetAmount,
+    targetDate = targetDate?.let {
+        runCatching { LocalDate.parse(it, DateTimeFormatter.ISO_LOCAL_DATE) }.getOrNull()
+    }
 )
 
 // ─── CategoryResponse → CategoryEntity ───────────────────────────────────

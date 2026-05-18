@@ -15,10 +15,17 @@ CREATE TABLE IF NOT EXISTS users (
     username VARCHAR(50) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
     full_name VARCHAR(100),
-    avatar_url VARCHAR(255),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
+    google_id   VARCHAR(100),
+    avatar_url  VARCHAR(255),
+    provider    VARCHAR(20)  NOT NULL DEFAULT 'LOCAL',
+    enabled     TINYINT(1)   NOT NULL DEFAULT 1,
+    created_at  DATETIME     DEFAULT CURRENT_TIMESTAMP,
+    updated_at  DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_username (username),
+    UNIQUE KEY uk_email    (email),
+    UNIQUE KEY uk_google_id (google_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+   
 
 -- 2. Bảng WALLETS (Quản lý ví)
 -- Đã bổ sung user_id để phân biệt ví của ai
@@ -78,7 +85,7 @@ CREATE TABLE IF NOT EXISTS categories (
     user_id BIGINT NULL, -- NULL = danh mục mặc định global, khác NULL = danh mục riêng của user
     parent_id BIGINT NULL,
     name VARCHAR(100) NOT NULL,
-    icon VARCHAR(50) DEFAULT 'category', -- Material icon key, ví dụ: home_repair_service
+    icon VARCHAR(64) DEFAULT 'category', -- Material icon key, ví dụ: home_repair_service
     color_hex VARCHAR(10) DEFAULT '#4659A6',
     type VARCHAR(20) NOT NULL, -- INCOME, EXPENSE, DEBT, BOTH
     is_default BOOLEAN DEFAULT FALSE,
@@ -100,7 +107,7 @@ CREATE TABLE IF NOT EXISTS categories (
 -- Migration an toàn cho database đã tạo bằng phiên bản SQL cũ.
 -- CREATE TABLE IF NOT EXISTS không tự thêm cột mới, nên cần chạy các ALTER dưới đây
 -- trước khi seed danh mục mặc định 1001..1036.
-ALTER TABLE categories MODIFY COLUMN icon VARCHAR(50) DEFAULT 'category';
+ALTER TABLE categories MODIFY COLUMN icon VARCHAR(64) DEFAULT 'category';
 
 SET @ddl = IF(
     (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS

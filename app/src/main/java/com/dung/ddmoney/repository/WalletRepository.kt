@@ -41,21 +41,25 @@ class WalletRepository(
     // ─── CRUD ────────────────────────────────────────────────────────────
 
     suspend fun create(req: WalletRequest): Result<WalletResponse> = safeCall {
-        val response = api.createWallet(req)
-        if (req.isDefault || response.isDefault == true) {
+        val isFirstWallet = dao.getAll().isEmpty()
+        val guardedReq = req.normalizedForWalletType(isDefaultWallet = req.isDefault || isFirstWallet)
+        val response = api.createWallet(guardedReq)
+        if (guardedReq.isDefault || response.isDefault == true) {
             dao.clearAllDefaults()
         }
         dao.upsert(response.toEntity())
         // If this is the user's first wallet, auto-set as default
-        if (req.isDefault || dao.getAll().size == 1) {
+        if (guardedReq.isDefault || isFirstWallet) {
             dao.setDefault(response.id.toString())
         }
         response
     }
 
     suspend fun update(id: Long, req: WalletRequest): Result<WalletResponse> = safeCall {
-        val response = api.updateWallet(id, req)
-        if (req.isDefault || response.isDefault == true) {
+        val current = dao.getByServerId(id)
+        val guardedReq = req.normalizedForWalletType(isDefaultWallet = current?.isDefault == true || req.isDefault)
+        val response = api.updateWallet(id, guardedReq)
+        if (guardedReq.isDefault || response.isDefault == true) {
             dao.clearAllDefaults()
         }
         dao.upsert(response.toEntity())
@@ -68,8 +72,11 @@ class WalletRepository(
      * to preserve transaction history references.
      */
     suspend fun delete(id: Long): Result<Unit> = safeCall {
-        api.deleteWallet(id)
         val entity = dao.getByServerId(id)
+        if (entity?.isDefault == true) {
+            throw IllegalStateException("Ví mặc định không thể lưu trữ")
+        }
+        api.deleteWallet(id)
         if (entity != null) {
             dao.archive(entity.id)
         }
@@ -119,20 +126,16 @@ class WalletRepository(
 
     /** Archive wallet (soft-delete). Wallet stays in DB for history. */
     suspend fun archiveWallet(walletId: String): Result<Unit> = safeCall {
+        val wallet = dao.getById(walletId)
+        if (wallet?.isDefault == true) {
+            throw IllegalStateException("Ví mặc định không thể lưu trữ")
+        }
+
         val serverId = walletId.toLongOrNull()
         if (serverId != null) {
             api.deleteWallet(serverId)
         }
         dao.archive(walletId)
-        // If archived wallet was default, pick a new default
-        val archived = dao.getById(walletId)
-        if (archived?.isDefault == true) {
-            dao.clearAllDefaults()
-            val remaining = dao.getAll().filter { !it.isArchived }
-            if (remaining.isNotEmpty()) {
-                dao.setDefault(remaining.first().id)
-            }
-        }
     }
 
     /** Restore an archived wallet */
@@ -178,5 +181,93 @@ class WalletRepository(
             .take(2)
 
         return listOf(default) + prioritized
+    }
+
+    private fun WalletRequest.normalizedForWalletType(isDefaultWallet: Boolean): WalletRequest {
+        val walletType = WalletType.fromString(type)
+        val base = copy(
+            name = name.trim(),
+            currency = currency.ifBlank { "VND" },
+            isDefault = isDefault || isDefaultWallet,
+            isIncludedInTotal = if (isDefault || isDefaultWallet) true else isIncludedInTotal
+        )
+
+        val normalized = when (walletType) {
+            WalletType.CREDIT_CARD -> base.copy(
+                balance = 0.0,
+                type = WalletType.CREDIT_CARD.name,
+                bankName = null,
+                cardNumber = null,
+                creditLimit = creditLimit ?: 0.0,
+                currentDebt = currentDebt ?: 0.0,
+                targetAmount = null,
+                targetDate = null
+            )
+
+            WalletType.SAVINGS -> base.copy(
+                type = WalletType.SAVINGS.name,
+                bankName = null,
+                cardNumber = null,
+                creditLimit = null,
+                currentDebt = null,
+                billingDay = null,
+                paymentDueDay = null
+            )
+
+            WalletType.CASH,
+            WalletType.BANK,
+            WalletType.EWALLET -> base.copy(
+                type = walletType.name,
+                bankName = null,
+                cardNumber = null,
+                creditLimit = null,
+                currentDebt = null,
+                billingDay = null,
+                paymentDueDay = null,
+                targetAmount = null,
+                targetDate = null
+            )
+
+            WalletType.INVESTMENT -> base.copy(
+                type = walletType.name,
+                bankName = null,
+                cardNumber = null,
+                creditLimit = null,
+                currentDebt = null,
+                billingDay = null,
+                paymentDueDay = null
+            )
+        }
+
+        normalized.validateWalletBusinessRules()
+        return normalized
+    }
+
+    private fun WalletRequest.validateWalletBusinessRules() {
+        require(name.isNotBlank()) { "Tên ví không được rỗng" }
+
+        val walletType = WalletType.fromString(type)
+        when (walletType) {
+            WalletType.CREDIT_CARD -> {
+                val limit = creditLimit ?: 0.0
+                val debt = currentDebt ?: 0.0
+                require(limit >= 0.0) { "Hạn mức không được âm" }
+                require(debt >= 0.0) { "Dư nợ không được âm" }
+                require(limit >= debt) { "Hạn mức phải lớn hơn hoặc bằng dư nợ hiện tại" }
+                require(billingDay?.let { it in 1..31 } == true) { "Ngày sao kê phải nằm trong 1..31" }
+                require(paymentDueDay?.let { it in 1..31 } == true) { "Ngày thanh toán phải nằm trong 1..31" }
+            }
+
+            WalletType.SAVINGS -> {
+                require(balance >= 0.0) { "Số dư không được âm" }
+                targetAmount?.let {
+                    require(it > balance) { "Mục tiêu tiết kiệm phải lớn hơn số dư hiện tại" }
+                }
+            }
+
+            else -> {
+                require(balance >= 0.0) { "Số dư không được âm" }
+            }
+        }
     }
 }

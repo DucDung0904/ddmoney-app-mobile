@@ -4,6 +4,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,6 +23,7 @@ import com.dung.ddmoney.network.dto.RegisterRequest
 import com.dung.ddmoney.ui.analytics.AnalyticsScreen
 import com.dung.ddmoney.ui.auth.*
 import com.dung.ddmoney.ui.home.HomeScreen
+import com.dung.ddmoney.ui.ledger.LedgerScreen
 import com.dung.ddmoney.ui.profile.ProfileScreen
 import com.dung.ddmoney.ui.wallets.WalletEditorScreen
 import com.dung.ddmoney.ui.wallets.WalletListScreen
@@ -41,6 +43,16 @@ fun NavGraph(
 ) {
     val authLoading by viewModel.authLoading.collectAsState()
     val appState by viewModel.state.collectAsState()
+    val isLoggedIn by viewModel.isLoggedIn.collectAsState()
+
+    LaunchedEffect(isLoggedIn) {
+        if (!isLoggedIn) {
+            navController.navigate(Routes.WELCOME) {
+                popUpTo(0) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
+    }
 
     NavHost(
             navController = navController,
@@ -82,6 +94,10 @@ fun NavGraph(
             )
         }
         composable(Routes.LOGIN) {
+            val context = androidx.compose.ui.platform.LocalContext.current
+            val scope = rememberCoroutineScope()
+            val googleSignInManager = remember { com.dung.ddmoney.ui.auth.GoogleSignInManager(context) }
+            
             LoginScreen(
                     onLoginClick = { email, password ->
                         viewModel.login(AuthRequest(email, password)) { isNewUser ->
@@ -94,21 +110,75 @@ fun NavGraph(
                             }
                         }
                     },
-                    onNavigateToRegister = { navController.navigate(Routes.REGISTER) },
-                    onBack = { navController.popBackStack() },
+                    onNavigateToRegister = { 
+                        viewModel.clearError()
+                        navController.navigate(Routes.REGISTER) 
+                    },
+                    onGoogleSignInClick = {
+                        scope.launch {
+                            googleSignInManager.signIn()
+                                .onSuccess { idToken ->
+                                    viewModel.loginWithGoogle(idToken) { isNewUser ->
+                                        if (isNewUser) {
+                                            navController.navigate(Routes.ONBOARDING)
+                                        } else {
+                                            navController.navigate(Routes.MAIN) {
+                                                popUpTo(Routes.WELCOME) { inclusive = true }
+                                            }
+                                        }
+                                    }
+                                }
+                                .onFailure { e ->
+                                    viewModel.setError(e.message ?: "Không thể đăng nhập Google")
+                                }
+                        }
+                    },
+                    onBack = { 
+                        viewModel.clearError()
+                        navController.popBackStack() 
+                    },
                     isLoading = authLoading,
                     errorMessage = appState.error
             )
         }
         composable(Routes.REGISTER) {
+            val context = androidx.compose.ui.platform.LocalContext.current
+            val scope = rememberCoroutineScope()
+            val googleSignInManager = remember { com.dung.ddmoney.ui.auth.GoogleSignInManager(context) }
+
             RegisterScreen(
                     onRegisterClick = { fullName, email, password ->
                         viewModel.register(RegisterRequest(fullName, email, password)) {
                             navController.navigate(Routes.LOGIN)
                         }
                     },
-                    onNavigateToLogin = { navController.navigate(Routes.LOGIN) },
-                    onBack = { navController.popBackStack() },
+                    onNavigateToLogin = { 
+                        viewModel.clearError()
+                        navController.navigate(Routes.LOGIN) 
+                    },
+                    onGoogleSignInClick = {
+                        scope.launch {
+                            googleSignInManager.signIn()
+                                .onSuccess { idToken ->
+                                    viewModel.loginWithGoogle(idToken) { isNewUser ->
+                                        if (isNewUser) {
+                                            navController.navigate(Routes.ONBOARDING)
+                                        } else {
+                                            navController.navigate(Routes.MAIN) {
+                                                popUpTo(Routes.WELCOME) { inclusive = true }
+                                            }
+                                        }
+                                    }
+                                }
+                                .onFailure { e ->
+                                    viewModel.setError(e.message ?: "Không thể đăng nhập Google")
+                                }
+                        }
+                    },
+                    onBack = { 
+                        viewModel.clearError()
+                        navController.popBackStack() 
+                    },
                     isLoading = authLoading,
                     errorMessage = appState.error
             )
@@ -149,6 +219,7 @@ fun MainContainer(viewModel: AppViewModel, rootNavController: NavHostController)
 
     val state by viewModel.state.collectAsState()
     var showAddTransaction by remember { mutableStateOf(false) }
+    var showAnalytics by remember { mutableStateOf(false) }
     var walletEditorTarget by remember { mutableStateOf<Wallet?>(null) }
     var showWalletEditor by remember { mutableStateOf(false) }
 
@@ -264,7 +335,8 @@ fun MainContainer(viewModel: AppViewModel, rootNavController: NavHostController)
                                     onAddWallet = {
                                         walletEditorTarget = null
                                         showWalletEditor = true
-                                    }
+                                    },
+                                    onViewReport = { showAnalytics = true }
                             )
                         }
                         composable("wallet_list") {
@@ -289,8 +361,8 @@ fun MainContainer(viewModel: AppViewModel, rootNavController: NavHostController)
                             )
                         }
                         composable(NavItem.Budget.route) { BudgetScreen(viewModel) }
-                        composable(NavItem.Analytics.route) {
-                            AnalyticsScreen(
+                        composable(NavItem.Ledger.route) {
+                            LedgerScreen(
                                     transactions = state.transactions,
                                     categories = state.categories
                             )
@@ -380,6 +452,58 @@ fun MainContainer(viewModel: AppViewModel, rootNavController: NavHostController)
                     },
                     onDismiss = { showAddTransaction = false }
             )
+        }
+
+        // Analytics Report Modal Overlay (slides from bottom, 95% height)
+        androidx.compose.animation.AnimatedVisibility(
+                visible = showAnalytics,
+                modifier = Modifier.fillMaxSize(),
+                enter =
+                        androidx.compose.animation.slideInVertically(
+                                initialOffsetY = { it },
+                                animationSpec = tween(400, easing = FastOutSlowInEasing)
+                        ) +
+                                fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing)),
+                exit =
+                        androidx.compose.animation.slideOutVertically(
+                                targetOffsetY = { it },
+                                animationSpec = tween(350, easing = FastOutSlowInEasing)
+                        ) +
+                                fadeOut(animationSpec = tween(180, easing = FastOutSlowInEasing))
+        ) {
+            Box(
+                    modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.45f))
+                            .clickable(
+                                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                                    indication = null,
+                                    onClick = { showAnalytics = false }
+                            ),
+                    contentAlignment = Alignment.BottomCenter
+            ) {
+                Surface(
+                        modifier = Modifier
+                                .fillMaxWidth()
+                                .fillMaxHeight(0.95f)
+                                .clickable(
+                                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                                        indication = null,
+                                        onClick = {}
+                                ),
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(
+                                topStart = 24.dp,
+                                topEnd = 24.dp
+                        ),
+                        color = com.dung.ddmoney.ui.theme.LuminousBackground
+                ) {
+                    AnalyticsScreen(
+                            transactions = state.transactions,
+                            categories = state.categories,
+                            onDismiss = { showAnalytics = false }
+                    )
+                }
+            }
         }
 
         AnimatedVisibility(

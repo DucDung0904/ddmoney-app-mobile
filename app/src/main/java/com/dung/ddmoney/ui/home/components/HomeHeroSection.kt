@@ -24,8 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dung.ddmoney.ui.theme.*
-import java.text.NumberFormat
-import java.util.Locale
+import com.dung.ddmoney.ui.components.formatMoneyDisplay
 
 /**
  * HomeHeroSection
@@ -36,7 +35,7 @@ import java.util.Locale
  * │  └──────────────────────────────────────┘  │
  * │                                             │
  * │  ┌─── floating balance card (3/4 overlap) ┐  │
- * │  │  Tổng số dư   2,000,000 đ  👁          │  │
+ * │  │  Tổng số dư   2.000.000 đ  👁          │  │
  * │  └────────────────────────────────────────┘  │
  * └─────────────────────────────────────────────┘
  * [LuminousBackground continues below]
@@ -248,6 +247,5 @@ private fun BalanceSummaryCard(
 }
 
 private fun formatBalanceAmount(amount: Double): String {
-    val formatter = NumberFormat.getNumberInstance(Locale.forLanguageTag("vi-VN"))
-    return "${formatter.format(amount)} đ"
+    return formatMoneyDisplay(amount)
 }

@@ -28,7 +28,8 @@ fun HomeScreen(
     transactions: List<Transaction> = emptyList(),
     recentTransactions: List<Transaction> = emptyList(),
     onSeeAllWallets: () -> Unit = {},
-    onAddWallet: () -> Unit = {}
+    onAddWallet: () -> Unit = {},
+    onViewReport: () -> Unit = {}
 ) {
     var isBalanceVisible by remember { mutableStateOf(true) }
 
@@ -66,7 +67,11 @@ fun HomeScreen(
 
             // ── 3. Spending Report ──────────────────────────────────────────
             item {
-                HomeReportSection(transactions = transactions, categories = categories)
+                HomeReportSection(
+                    transactions = transactions,
+                    categories = categories,
+                    onViewReport = onViewReport
+                )
             }
 
             // ── 4. Recent transactions header + list ─────────────────────────
