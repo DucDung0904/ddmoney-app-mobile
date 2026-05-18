@@ -46,14 +46,55 @@ fun RegisterScreen(
     var confirmPassword by remember { mutableStateOf("") }
     var agreedToTerms by remember { mutableStateOf(false) }
     var showEmptyWarning by remember { mutableStateOf(false) }
+    var validationError by remember { mutableStateOf<String?>(null) }
 
     val passwordsMatch = password.isEmpty() || confirmPassword.isEmpty() || password == confirmPassword
-    val isFormValid = fullName.isNotBlank() && email.isNotBlank() &&
-            password.length >= 6 && password == confirmPassword && agreedToTerms
+    
+    fun validateInput(): Boolean {
+        if (fullName.isBlank() || email.isBlank() || password.isBlank() || confirmPassword.isBlank()) {
+            showEmptyWarning = true
+            validationError = null
+            return false
+        }
+        showEmptyWarning = false
+        
+        val emailRegex = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\$".toRegex()
+        if (!email.matches(emailRegex)) {
+            validationError = "Email không hợp lệ hoặc có chứa dấu"
+            return false
+        }
+        
+        val asciiRegex = "^[\\x20-\\x7E]+\$".toRegex()
+        if (!password.matches(asciiRegex)) {
+            validationError = "Mật khẩu không được chứa tiếng Việt có dấu"
+            return false
+        }
+        
+        if (password.length < 6) {
+            validationError = "Mật khẩu phải có ít nhất 6 ký tự"
+            return false
+        }
+        
+        if (password != confirmPassword) {
+            validationError = null // Handled by passwordsMatch check below input
+            return false
+        }
+        
+        if (!agreedToTerms) {
+            validationError = "Bạn phải đồng ý với Điều khoản & Chính sách"
+            return false
+        }
+        
+        validationError = null
+        return true
+    }
 
     // Reset warning when form becomes valid
-    LaunchedEffect(isFormValid) {
-        if (isFormValid) showEmptyWarning = false
+    LaunchedEffect(fullName, email, password, confirmPassword, agreedToTerms) {
+        if (fullName.isNotBlank() && email.isNotBlank() && password.length >= 6 && password == confirmPassword && agreedToTerms) {
+            showEmptyWarning = false
+            validationError = null
+        }
     }
 
     var isVisible by remember { mutableStateOf(false) }
@@ -189,10 +230,7 @@ fun RegisterScreen(
                     keyboardActions = KeyboardActions(
                         onDone = {
                             focusManager.clearFocus()
-                            if (!isFormValid) {
-                                showEmptyWarning = true
-                            } else {
-                                showEmptyWarning = false
+                            if (validateInput()) {
                                 onRegisterClick(fullName, email, password)
                             }
                         }
@@ -236,7 +274,7 @@ fun RegisterScreen(
                     )
                 }
 
-                val displayError = errorMessage ?: if (showEmptyWarning) "Vui lòng nhập đầy đủ thông tin hợp lệ" else null
+                val displayError = errorMessage ?: validationError ?: if (showEmptyWarning) "Vui lòng nhập đầy đủ thông tin hợp lệ" else null
                 displayError?.let { msg ->
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
@@ -258,10 +296,8 @@ fun RegisterScreen(
                         .clip(RoundedCornerShape(12.dp))
                         .background(Brush.linearGradient(listOf(Color(0xFF003CC7), Color(0xFF0D51FB))))
                         .clickable(enabled = !isLoading) {
-                            if (!isFormValid) {
-                                showEmptyWarning = true
-                            } else {
-                                showEmptyWarning = false
+                            focusManager.clearFocus()
+                            if (validateInput()) {
                                 onRegisterClick(fullName, email, password)
                             }
                         },

@@ -300,19 +300,162 @@ CREATE TABLE IF NOT EXISTS transactions (
 );
 
 -- 5. Bảng BUDGETS (Ngân sách chính)
+-- Logic nghiệp vụ:
+-- - Ngân sách KHÔNG trừ tiền trong ví, chỉ dùng để so sánh với transactions type = EXPENSE.
+-- - category_id = NULL + scope = 'ALL_CATEGORIES' nghĩa là ngân sách áp dụng cho tất cả danh mục chi tiêu.
+-- - wallet_id = NULL + wallet_scope = 'ALL_WALLETS' nghĩa là ngân sách áp dụng cho tất cả ví active của user.
+-- - CUSTOM period không nên repeat. Repeat chỉ hợp lệ với WEEK, MONTH, QUARTER, YEAR.
 CREATE TABLE IF NOT EXISTS budgets (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT NOT NULL,
-    name VARCHAR(100) NOT NULL, -- Tên ngân sách (vd: Ăn uống & Sinh hoạt)
-    amount DECIMAL(18,2) NOT NULL, -- Tổng số tiền giới hạn cho ngân sách này
-    month INT NOT NULL, -- Tháng áp dụng (1-12)
-    year INT NOT NULL, -- Năm áp dụng (vd: 2024)
+    name VARCHAR(100) NOT NULL,
+    amount DECIMAL(18,2) NOT NULL,
+    category_id BIGINT NULL,
+    wallet_id BIGINT NULL,
+    scope VARCHAR(30) NOT NULL DEFAULT 'ALL_CATEGORIES', -- CATEGORY, ALL_CATEGORIES
+    wallet_scope VARCHAR(30) NOT NULL DEFAULT 'ALL_WALLETS', -- ONE_WALLET, ALL_WALLETS
+    period_type VARCHAR(20) NOT NULL DEFAULT 'MONTH', -- WEEK, MONTH, QUARTER, YEAR, CUSTOM
+    repeat_type VARCHAR(20) NOT NULL DEFAULT 'NONE', -- NONE, WEEKLY, MONTHLY, QUARTERLY, YEARLY
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+
+    -- Generated keys giúp unique constraint xử lý NULL như một giá trị thật.
+    category_key BIGINT GENERATED ALWAYS AS (COALESCE(category_id, -1)) STORED,
+    wallet_key BIGINT GENERATED ALWAYS AS (COALESCE(wallet_id, -1)) STORED,
+
+    CONSTRAINT fk_budgets_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_budgets_category FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_budgets_wallet FOREIGN KEY (wallet_id) REFERENCES wallets(id) ON DELETE RESTRICT,
+    CONSTRAINT chk_budgets_amount_positive CHECK (amount > 0),
+    CONSTRAINT chk_budgets_date_range CHECK (start_date <= end_date),
+    CONSTRAINT chk_budgets_scope CHECK (scope IN ('CATEGORY', 'ALL_CATEGORIES')),
+    CONSTRAINT chk_budgets_wallet_scope CHECK (wallet_scope IN ('ONE_WALLET', 'ALL_WALLETS')),
+    CONSTRAINT chk_budgets_period_type CHECK (period_type IN ('WEEK', 'MONTH', 'QUARTER', 'YEAR', 'CUSTOM')),
+    CONSTRAINT chk_budgets_repeat_type CHECK (repeat_type IN ('NONE', 'WEEKLY', 'MONTHLY', 'QUARTERLY', 'YEARLY')),
+    CONSTRAINT chk_budgets_scope_category_consistency CHECK (
+        (scope = 'CATEGORY' AND category_id IS NOT NULL)
+        OR (scope = 'ALL_CATEGORIES' AND category_id IS NULL)
+    ),
+    CONSTRAINT chk_budgets_scope_wallet_consistency CHECK (
+        (wallet_scope = 'ONE_WALLET' AND wallet_id IS NOT NULL)
+        OR (wallet_scope = 'ALL_WALLETS' AND wallet_id IS NULL)
+    ),
+    CONSTRAINT chk_budgets_repeat_consistency CHECK (
+        (repeat_type = 'NONE')
+        OR (period_type IN ('WEEK', 'MONTH', 'QUARTER', 'YEAR') AND repeat_type <> 'NONE')
+    ),
+
+    UNIQUE KEY uk_budget_identity (
+        user_id, category_key, wallet_key, start_date, end_date, active
+    ),
+    INDEX idx_budgets_user_active (user_id, active),
+    INDEX idx_budgets_period (user_id, start_date, end_date),
+    INDEX idx_budgets_category (category_id),
+    INDEX idx_budgets_wallet (wallet_id)
 );
 
--- 6. Bảng BUDGET_CATEGORIES (Bảng trung gian: Một ngân sách chứa nhiều danh mục)
+-- Migration an toàn cho database đã tạo bằng schema ngân sách cũ (month/year + budget_categories).
+-- CREATE TABLE IF NOT EXISTS không tự thêm cột mới, nên cần bổ sung các ALTER dưới đây.
+SET @ddl = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'budgets' AND COLUMN_NAME = 'category_id') = 0, 'ALTER TABLE budgets ADD COLUMN category_id BIGINT NULL AFTER amount', 'SELECT 1');
+PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @ddl = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'budgets' AND COLUMN_NAME = 'wallet_id') = 0, 'ALTER TABLE budgets ADD COLUMN wallet_id BIGINT NULL AFTER category_id', 'SELECT 1');
+PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @ddl = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'budgets' AND COLUMN_NAME = 'scope') = 0, 'ALTER TABLE budgets ADD COLUMN scope VARCHAR(30) NOT NULL DEFAULT ''ALL_CATEGORIES'' AFTER wallet_id', 'SELECT 1');
+PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @ddl = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'budgets' AND COLUMN_NAME = 'wallet_scope') = 0, 'ALTER TABLE budgets ADD COLUMN wallet_scope VARCHAR(30) NOT NULL DEFAULT ''ALL_WALLETS'' AFTER scope', 'SELECT 1');
+PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @ddl = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'budgets' AND COLUMN_NAME = 'period_type') = 0, 'ALTER TABLE budgets ADD COLUMN period_type VARCHAR(20) NOT NULL DEFAULT ''MONTH'' AFTER wallet_scope', 'SELECT 1');
+PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @ddl = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'budgets' AND COLUMN_NAME = 'repeat_type') = 0, 'ALTER TABLE budgets ADD COLUMN repeat_type VARCHAR(20) NOT NULL DEFAULT ''NONE'' AFTER period_type', 'SELECT 1');
+PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @ddl = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'budgets' AND COLUMN_NAME = 'start_date') = 0, 'ALTER TABLE budgets ADD COLUMN start_date DATE NULL AFTER repeat_type', 'SELECT 1');
+PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @ddl = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'budgets' AND COLUMN_NAME = 'end_date') = 0, 'ALTER TABLE budgets ADD COLUMN end_date DATE NULL AFTER start_date', 'SELECT 1');
+PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @ddl = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'budgets' AND COLUMN_NAME = 'active') = 0, 'ALTER TABLE budgets ADD COLUMN active BOOLEAN NOT NULL DEFAULT TRUE AFTER end_date', 'SELECT 1');
+PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Backfill start_date/end_date từ month/year nếu database cũ vẫn còn 2 cột này.
+SET @ddl = IF(
+    (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'budgets' AND COLUMN_NAME = 'month') > 0
+    AND
+    (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'budgets' AND COLUMN_NAME = 'year') > 0,
+    'UPDATE budgets SET start_date = COALESCE(start_date, STR_TO_DATE(CONCAT(year, ''-'', LPAD(month, 2, ''0''), ''-01''), ''%Y-%m-%d'')), end_date = COALESCE(end_date, LAST_DAY(STR_TO_DATE(CONCAT(year, ''-'', LPAD(month, 2, ''0''), ''-01''), ''%Y-%m-%d''))) WHERE start_date IS NULL OR end_date IS NULL',
+    'SELECT 1'
+);
+PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Schema mới không dùng month/year nữa. Cho phép NULL để backend mới chỉ cần start_date/end_date.
+SET @ddl = IF(
+    (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'budgets' AND COLUMN_NAME = 'month') > 0,
+    'ALTER TABLE budgets MODIFY COLUMN month INT NULL',
+    'SELECT 1'
+);
+PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @ddl = IF(
+    (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'budgets' AND COLUMN_NAME = 'year') > 0,
+    'ALTER TABLE budgets MODIFY COLUMN year INT NULL',
+    'SELECT 1'
+);
+PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Backfill category_id từ budget_categories cũ: lấy category đầu tiên nếu ngân sách cũ có danh mục.
+SET @ddl = IF(
+    (SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'budget_categories') > 0,
+    'UPDATE budgets b SET category_id = COALESCE(category_id, (SELECT MIN(bc.category_id) FROM budget_categories bc WHERE bc.budget_id = b.id)), scope = CASE WHEN COALESCE(category_id, (SELECT MIN(bc2.category_id) FROM budget_categories bc2 WHERE bc2.budget_id = b.id)) IS NULL THEN ''ALL_CATEGORIES'' ELSE ''CATEGORY'' END',
+    'SELECT 1'
+);
+PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+UPDATE budgets
+SET start_date = COALESCE(start_date, CURRENT_DATE),
+    end_date = COALESCE(end_date, CURRENT_DATE),
+    wallet_scope = CASE WHEN wallet_id IS NULL THEN 'ALL_WALLETS' ELSE 'ONE_WALLET' END,
+    scope = CASE WHEN category_id IS NULL THEN 'ALL_CATEGORIES' ELSE 'CATEGORY' END,
+    repeat_type = COALESCE(repeat_type, 'NONE'),
+    period_type = COALESCE(period_type, 'MONTH');
+
+ALTER TABLE budgets MODIFY COLUMN start_date DATE NOT NULL;
+ALTER TABLE budgets MODIFY COLUMN end_date DATE NOT NULL;
+
+SET @ddl = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'budgets' AND COLUMN_NAME = 'category_key') = 0, 'ALTER TABLE budgets ADD COLUMN category_key BIGINT GENERATED ALWAYS AS (COALESCE(category_id, -1)) STORED', 'SELECT 1');
+PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @ddl = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'budgets' AND COLUMN_NAME = 'wallet_key') = 0, 'ALTER TABLE budgets ADD COLUMN wallet_key BIGINT GENERATED ALWAYS AS (COALESCE(wallet_id, -1)) STORED', 'SELECT 1');
+PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @ddl = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'budgets' AND INDEX_NAME = 'uk_budget_identity') = 0, 'CREATE UNIQUE INDEX uk_budget_identity ON budgets(user_id, category_key, wallet_key, start_date, end_date, active)', 'SELECT 1');
+PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @ddl = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'budgets' AND INDEX_NAME = 'idx_budgets_user_active') = 0, 'CREATE INDEX idx_budgets_user_active ON budgets(user_id, active)', 'SELECT 1');
+PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @ddl = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'budgets' AND INDEX_NAME = 'idx_budgets_period') = 0, 'CREATE INDEX idx_budgets_period ON budgets(user_id, start_date, end_date)', 'SELECT 1');
+PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @ddl = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'transactions' AND INDEX_NAME = 'idx_transactions_budget_calc') = 0, 'CREATE INDEX idx_transactions_budget_calc ON transactions(user_id, type, date, category_id, wallet_id)', 'SELECT 1');
+PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @ddl = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'wallets' AND INDEX_NAME = 'idx_wallets_user_active') = 0, 'CREATE INDEX idx_wallets_user_active ON wallets(user_id, is_archived, is_active)', 'SELECT 1');
+PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- 6. Bảng BUDGET_CATEGORIES (legacy)
+-- Bảng này giữ lại để tương thích dữ liệu/app cũ từng cho một ngân sách chứa nhiều danh mục.
+-- Backend mới nên dùng budgets.category_id + budgets.scope theo logic Money Lover:
+--   scope = CATEGORY + category_id != NULL
+--   scope = ALL_CATEGORIES + category_id = NULL
 CREATE TABLE IF NOT EXISTS budget_categories (
     budget_id BIGINT NOT NULL,
     category_id BIGINT NOT NULL,
@@ -322,10 +465,13 @@ CREATE TABLE IF NOT EXISTS budget_categories (
 );
 
 /*
-Ghi chú workflow logic:
+Ghi chú workflow logic ngân sách:
 1. Tạo ngân sách: 
-   - Insert vào bảng `budgets` lấy generated id.
-   - Insert các dòng vào `budget_categories` với `budget_id` vừa tạo và các `category_id` được chọn.
+   - Insert vào bảng `budgets`.
+   - Nếu user chọn "tất cả danh mục": scope = 'ALL_CATEGORIES', category_id = NULL.
+   - Nếu user chọn một danh mục chi tiêu: scope = 'CATEGORY', category_id = selected category.
+   - Nếu user chọn "tất cả ví": wallet_scope = 'ALL_WALLETS', wallet_id = NULL.
+   - Nếu user chọn một ví: wallet_scope = 'ONE_WALLET', wallet_id = selected wallet.
 
 2. Query danh mục đúng theo user:
    SELECT *
@@ -339,20 +485,20 @@ Ghi chú workflow logic:
    - transactions.category_id = selected_category.id
    - Không dùng category name dạng text để xác định danh mục.
 
-4. Tính toán ngân sách (Spent Amount), có hỗ trợ chọn category cha:
-   SELECT 
+4. Tính toán ngân sách (Spent Amount):
+   SELECT
        b.*,
        COALESCE(SUM(t.amount), 0) AS spent_amount,
        (b.amount - COALESCE(SUM(t.amount), 0)) AS remaining,
-       (COALESCE(SUM(t.amount), 0) / b.amount * 100) AS percent_used
+       CASE WHEN b.amount > 0 THEN (COALESCE(SUM(t.amount), 0) / b.amount * 100) ELSE 0 END AS percent_used
    FROM budgets b
-   JOIN budget_categories bc ON b.id = bc.budget_id
-   LEFT JOIN categories c ON c.id = bc.category_id OR c.parent_id = bc.category_id
-   LEFT JOIN transactions t ON t.category_id = c.id
-       AND t.user_id = b.user_id
+   LEFT JOIN transactions t ON t.user_id = b.user_id
        AND t.type = 'EXPENSE'
-       AND MONTH(t.date) = b.month
-       AND YEAR(t.date) = b.year
+       AND t.date BETWEEN b.start_date AND b.end_date
+       AND (b.scope = 'ALL_CATEGORIES' OR t.category_id = b.category_id)
+       AND (b.wallet_scope = 'ALL_WALLETS' OR t.wallet_id = b.wallet_id)
+   WHERE b.user_id = :current_user_id
+     AND b.active = TRUE
    GROUP BY b.id;
 
 5. Cập nhật giao dịch: Không cần trigger hay cập nhật trực tiếp vào budgets. 
@@ -363,6 +509,6 @@ Ghi chú workflow logic:
    - Custom category đã có transaction: không xoá cứng; dùng soft delete bằng is_deleted = TRUE.
    - Custom category chưa dùng: có thể xoá cứng nếu cần.
 
-7. Xoá ngân sách: ON DELETE CASCADE sẽ tự động xoá bản ghi trong budget_categories.
+7. Xoá ngân sách: nên soft delete bằng active = FALSE để giữ lịch sử. Có thể hard delete nếu app không cần audit.
 */
 
