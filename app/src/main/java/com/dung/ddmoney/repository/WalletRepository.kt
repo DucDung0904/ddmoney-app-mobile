@@ -42,6 +42,9 @@ class WalletRepository(
 
     suspend fun create(req: WalletRequest): Result<WalletResponse> = safeCall {
         val response = api.createWallet(req)
+        if (req.isDefault || response.isDefault == true) {
+            dao.clearAllDefaults()
+        }
         dao.upsert(response.toEntity())
         // If this is the user's first wallet, auto-set as default
         if (req.isDefault || dao.getAll().size == 1) {
@@ -52,7 +55,11 @@ class WalletRepository(
 
     suspend fun update(id: Long, req: WalletRequest): Result<WalletResponse> = safeCall {
         val response = api.updateWallet(id, req)
+        if (req.isDefault || response.isDefault == true) {
+            dao.clearAllDefaults()
+        }
         dao.upsert(response.toEntity())
+        ensureDefaultWallet()
         response
     }
 
@@ -75,6 +82,14 @@ class WalletRepository(
             val remote = api.getWallets()
             dao.upsertAll(remote.map { it.toEntity() })
         }
+
+    suspend fun transfer(fromWalletId: String, toWalletId: String, amount: Double, note: String? = null): Result<Unit> {
+        val fromServerId = fromWalletId.toLongOrNull()
+            ?: return Result.failure(IllegalArgumentException("Ví nguồn chưa đồng bộ"))
+        val toServerId = toWalletId.toLongOrNull()
+            ?: return Result.failure(IllegalArgumentException("Ví đích chưa đồng bộ"))
+        return transfer(fromServerId, toServerId, amount, note)
+    }
 
     // ─── Default Wallet Logic ────────────────────────────────────────────
 
@@ -104,6 +119,10 @@ class WalletRepository(
 
     /** Archive wallet (soft-delete). Wallet stays in DB for history. */
     suspend fun archiveWallet(walletId: String): Result<Unit> = safeCall {
+        val serverId = walletId.toLongOrNull()
+        if (serverId != null) {
+            api.deleteWallet(serverId)
+        }
         dao.archive(walletId)
         // If archived wallet was default, pick a new default
         val archived = dao.getById(walletId)
@@ -118,7 +137,14 @@ class WalletRepository(
 
     /** Restore an archived wallet */
     suspend fun unarchiveWallet(walletId: String): Result<Unit> = safeCall {
-        dao.unarchive(walletId)
+        val serverId = walletId.toLongOrNull()
+        if (serverId != null) {
+            val response = api.restoreWallet(serverId)
+            dao.upsert(response.toEntity())
+        } else {
+            dao.unarchive(walletId)
+        }
+        ensureDefaultWallet()
     }
 
     // ─── Smart Wallet Selection (for Home quick section) ─────────────────

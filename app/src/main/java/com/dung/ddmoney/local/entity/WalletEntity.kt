@@ -20,6 +20,7 @@ data class WalletEntity(
     val isDefault: Boolean = false,
     val isActive: Boolean = true,       // backward compat
     val isArchived: Boolean = false,
+    val isIncludedInTotal: Boolean = true,
     val sortOrder: Int = 0,
     // Credit card specific
     val creditLimit: Double? = null,

@@ -90,10 +90,10 @@ val LuminousOnSurface             = Color(0xFF181C20)
 val LuminousOnSurfaceVariant      = NeutralGray600      // #888780
 val LuminousInverseOnSurface      = Color(0xFFEFF1F7)
 
-// Home surface treatment: soft blue canvas + raised white frames, without patterns.
-val HomeBackgroundTop             = Color(0xFFE8F3FD)
-val HomeBackgroundMid             = Color(0xFFF8FBFE)
-val HomeBackgroundBottom          = Color(0xFFEEF4FA)
+// Home surface treatment: cool gray canvas + raised white frames, without patterns.
+val HomeBackgroundTop             = Color(0xFFE4EAF1)
+val HomeBackgroundMid             = Color(0xFFEFF2F5)
+val HomeBackgroundBottom          = Color(0xFFE3E8EE)
 val HomeFrameSurface              = Color(0xFFFBFEFF)
 val HomeFrameBorder               = Color(0xFFE1ECF6)
 

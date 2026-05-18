@@ -28,7 +28,7 @@ fun HomeScreen(
     transactions: List<Transaction> = emptyList(),
     recentTransactions: List<Transaction> = emptyList(),
     onSeeAllWallets: () -> Unit = {},
-    onAddWallet: ((Wallet) -> Unit)? = null
+    onAddWallet: () -> Unit = {}
 ) {
     var isBalanceVisible by remember { mutableStateOf(true) }
 
@@ -78,8 +78,8 @@ fun HomeScreen(
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp),
-                    shape    = RoundedCornerShape(24.dp),
+                        .padding(horizontal = 12.dp),
+                    shape    = RoundedCornerShape(6.dp),
                     color    = HomeFrameSurface,
                     border   = BorderStroke(1.dp, HomeFrameBorder.copy(alpha = 0.55f)),
                     shadowElevation = 6.dp

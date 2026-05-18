@@ -31,6 +31,7 @@ data class AppState(
         val transactions: List<Transaction> = emptyList(),
         val categories: List<Category> = emptyList(),
         val wallets: List<Wallet> = emptyList(),
+        val allWallets: List<Wallet> = emptyList(),
         val budgets: List<BudgetDisplayModel> = emptyList(),
         val userInfo: UserInfo = UserInfo(),
         val isLoading: Boolean = false,
@@ -120,8 +121,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                             balance = walletBalance,
                             type = walletType.name,
                             bankName = null,
-                            colorHex = "#003CC7",
-                            icon = walletIcon
+                            colorHex = com.dung.ddmoney.ui.wallets.WalletIconMap.colorHexFor(walletType),
+                            icon = walletIcon,
+                            currency = currency,
+                            isDefault = true
                     )
             walletRepo.create(req).onFailure { e ->
                 _error.value = "Không thể tạo ví: ${e.message}"
@@ -136,6 +139,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     val state: StateFlow<AppState> =
             combine(
                             walletRepo.observeActive(),
+                            walletRepo.observeAll(),
                             _currentUserId.flatMapLatest { userId ->
                                 categoryRepo.observeAll(userId)
                             },
@@ -149,16 +153,18 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                             _error
                     ) { args ->
                         @Suppress("UNCHECKED_CAST") val wallets = args[0] as List<Wallet>
-                        @Suppress("UNCHECKED_CAST") val categories = args[1] as List<Category>
-                        @Suppress("UNCHECKED_CAST") val transactions = args[2] as List<Transaction>
+                        @Suppress("UNCHECKED_CAST") val allWallets = args[1] as List<Wallet>
+                        @Suppress("UNCHECKED_CAST") val categories = args[2] as List<Category>
+                        @Suppress("UNCHECKED_CAST") val transactions = args[3] as List<Transaction>
                         @Suppress("UNCHECKED_CAST")
-                        val budgets = args[3] as List<BudgetDisplayModel>
-                        val userInfo = args[4] as UserInfo
-                        val isLoading = args[5] as Boolean
-                        val error = args[6] as String?
+                        val budgets = args[4] as List<BudgetDisplayModel>
+                        val userInfo = args[5] as UserInfo
+                        val isLoading = args[6] as Boolean
+                        val error = args[7] as String?
 
                         AppState(
                                 wallets = wallets,
+                                allWallets = allWallets,
                                 categories = categories,
                                 transactions = transactions,
                                 budgets = budgets,
@@ -425,6 +431,24 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun updateWallet(walletId: String, req: WalletRequest, onComplete: () -> Unit = {}) {
+        val serverId = walletId.toLongOrNull()
+        if (serverId == null) {
+            _error.value = "Không thể cập nhật ví chưa đồng bộ"
+            return
+        }
+        viewModelScope.launch {
+            _isLoading.value = true
+            walletRepo.update(serverId, req)
+                    .onSuccess {
+                        onComplete()
+                        syncAll()
+                    }
+                    .onFailure { e -> _error.value = "Không thể cập nhật ví: ${e.message}" }
+            _isLoading.value = false
+        }
+    }
+
     fun setDefaultWallet(walletId: String) {
         viewModelScope.launch {
             walletRepo.setDefaultWallet(walletId)
@@ -437,6 +461,50 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             walletRepo.delete(serverId)
                     .onSuccess { syncAll() }
                     .onFailure { e -> _error.value = "Không thể xóa ví: ${e.message}" }
+        }
+    }
+
+    fun archiveWallet(walletId: String, onComplete: () -> Unit = {}) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            walletRepo.archiveWallet(walletId)
+                    .onSuccess {
+                        onComplete()
+                        syncAll()
+                    }
+                    .onFailure { e -> _error.value = "Không thể lưu trữ ví: ${e.message}" }
+            _isLoading.value = false
+        }
+    }
+
+    fun unarchiveWallet(walletId: String, onComplete: () -> Unit = {}) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            walletRepo.unarchiveWallet(walletId)
+                    .onSuccess {
+                        onComplete()
+                        syncAll()
+                    }
+                    .onFailure { e -> _error.value = "Không thể bỏ lưu trữ ví: ${e.message}" }
+            _isLoading.value = false
+        }
+    }
+
+    fun transferWallet(
+            fromWalletId: String,
+            toWalletId: String,
+            amount: Double,
+            onComplete: () -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            walletRepo.transfer(fromWalletId, toWalletId, amount)
+                    .onSuccess {
+                        onComplete()
+                        syncAll()
+                    }
+                    .onFailure { e -> _error.value = "Không thể chuyển tiền: ${e.message}" }
+            _isLoading.value = false
         }
     }
 }

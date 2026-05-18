@@ -1,8 +1,8 @@
 package com.dung.ddmoney.ui.wallets
 
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -14,21 +14,27 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Unarchive
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dung.ddmoney.ui.dashboard.model.*
+import com.dung.ddmoney.ui.theme.*
+import java.text.NumberFormat
+import java.util.Locale
+
+private val WALLET_ICON_BOX_SIZE = 38.dp
+private val WALLET_ICON_SIZE = 23.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,16 +42,21 @@ fun WalletListScreen(
     wallets: List<Wallet>,
     onBack: () -> Unit,
     onAddWallet: () -> Unit,
-    onWalletClick: (Wallet) -> Unit
+    onWalletClick: (Wallet) -> Unit,
+    onUnarchiveWallet: (Wallet) -> Unit = {}
 ) {
+    val activeWallets = wallets.filter { !it.isArchived }
+    val archivedWallets = wallets.filter { it.isArchived }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { 
                     Text(
-                        text = "Quản lý tài khoản", 
+                        text = "Ví của tôi",
                         fontSize = 18.sp, 
                         fontWeight = FontWeight.Bold,
+                        color = LuminousOnSurface,
                         modifier = Modifier.padding(start = 8.dp)
                     ) 
                 },
@@ -63,44 +74,82 @@ fun WalletListScreen(
                         contentDescription = "Add"
                     )
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = LuminousBackground,
+                    titleContentColor = LuminousOnSurface
+                )
             )
         },
-        containerColor = Color(0xFFF8F9FB)
+        containerColor = LuminousBackground
     ) { padding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 120.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {
-                TotalBalanceSummaryCard(wallets.sumOf { it.balance })
+                TotalBalanceSummaryCard(activeWallets.filter { it.isIncludedInTotal }.sumOf { it.balance })
             }
 
             item {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp, bottom = 2.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Danh sách ví của bạn",
+                        text = "Danh sách ví",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF1A1C1E)
+                        color = LuminousOnSurface
                     )
                     Text(
-                        text = "${wallets.size} ví",
+                        text = "${activeWallets.size} ví",
                         fontSize = 13.sp,
-                        color = Color(0xFF7E8CA0)
+                        color = LuminousOnSurfaceVariant
                     )
                 }
             }
 
-            itemsIndexed(wallets) { index, wallet ->
+            itemsIndexed(activeWallets) { _, wallet ->
                 WalletDetailItem(wallet = wallet, onClick = { onWalletClick(wallet) })
+            }
+
+            if (archivedWallets.isNotEmpty()) {
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 10.dp, bottom = 2.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Ví lưu trữ",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = LuminousOnSurface
+                        )
+                        Text(
+                            text = "${archivedWallets.size} ví",
+                            fontSize = 13.sp,
+                            color = LuminousOnSurfaceVariant
+                        )
+                    }
+                }
+
+                itemsIndexed(archivedWallets) { _, wallet ->
+                    WalletDetailItem(
+                        wallet = wallet,
+                        isArchived = true,
+                        onClick = {},
+                        onUnarchive = { onUnarchiveWallet(wallet) }
+                    )
+                }
             }
             
             item { Spacer(modifier = Modifier.height(80.dp)) }
@@ -121,10 +170,7 @@ fun LiquidIconButton(
     // Hiệu ứng Liquid - Co giãn mượt mà khi nhấn
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.85f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
+        animationSpec = tween(durationMillis = 160),
         label = "LiquidScale"
     )
 
@@ -134,10 +180,10 @@ fun LiquidIconButton(
             .size(42.dp)
             .scale(scale)
             .clip(CircleShape)
-            .background(Color(0xFF003CC7).copy(alpha = 0.08f)) // Khung tròn mờ xanh
+            .background(OceanBlue50)
             .clickable(
                 interactionSource = interactionSource,
-                indication = ripple(bounded = true, color = Color(0xFF003CC7)),
+                indication = ripple(bounded = true, color = OceanBlue600),
                  onClick = onClick
             ),
         contentAlignment = Alignment.Center
@@ -145,7 +191,7 @@ fun LiquidIconButton(
         Icon(
             imageVector = icon,
             contentDescription = contentDescription,
-            tint = Color(0xFF003CC7),
+            tint = OceanBlue600,
             modifier = Modifier.size(22.dp)
         )
     }
@@ -156,49 +202,46 @@ private fun TotalBalanceSummaryCard(total: Double) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .height(120.dp),
-        shape = RoundedCornerShape(28.dp),
-        shadowElevation = 8.dp
+            .heightIn(min = 92.dp),
+        shape = RoundedCornerShape(6.dp),
+        color = LuminousSurfaceContainerLowest,
+        border = BorderStroke(1.dp, LuminousOutlineVariant.copy(alpha = 0.32f)),
+        shadowElevation = 2.dp
     ) {
-        Box(
+        Row(
             modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    brush = Brush.horizontalGradient(
-                        colors = listOf(
-                            Color(0xFF003CC7), 
-                            Color(0xFF4C1D95) 
-                        )
-                    )
-                )
-                .padding(24.dp)
+                .fillMaxWidth()
+                .padding(horizontal = 18.dp, vertical = 16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = "Tổng số dư",
+                    color = LuminousOnSurfaceVariant,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = formatWalletAmount(total),
+                    color = LuminousOnSurface,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Black
+                )
+            }
+
             Box(
                 modifier = Modifier
-                    .size(120.dp)
-                    .align(Alignment.BottomEnd)
-                    .offset(x = 30.dp, y = 30.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.08f))
-            )
-
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.Center
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(OceanBlue50),
+                contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = "TỔNG TÀI SẢN HIỆN CÓ", 
-                    color = Color.White.copy(alpha = 0.7f),
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.2.sp
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "${String.format("%,.0f", total)} đ",
-                    color = Color.White,
-                    fontSize = 30.sp,
-                    fontWeight = FontWeight.Black
+                Icon(
+                    imageVector = Icons.Outlined.AccountBalanceWallet,
+                    contentDescription = null,
+                    tint = OceanBlue600,
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
@@ -206,77 +249,104 @@ private fun TotalBalanceSummaryCard(total: Double) {
 }
 
 @Composable
-private fun WalletDetailItem(wallet: Wallet, onClick: () -> Unit) {
+private fun WalletDetailItem(
+    wallet: Wallet,
+    isArchived: Boolean = false,
+    onClick: () -> Unit,
+    onUnarchive: () -> Unit = {}
+) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(28.dp))
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(28.dp),
-        color = Color.White,
-        shadowElevation = 2.dp
+            .clip(RoundedCornerShape(6.dp))
+            .then(if (isArchived) Modifier else Modifier.clickable(onClick = onClick)),
+        shape = RoundedCornerShape(6.dp),
+        color = if (isArchived) LuminousSurfaceContainerLow else LuminousSurfaceContainerLowest,
+        border = BorderStroke(1.dp, LuminousOutlineVariant.copy(alpha = 0.32f)),
+        shadowElevation = 1.dp
     ) {
         Row(
-            modifier = Modifier.padding(14.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 58.dp)
+                .padding(horizontal = 18.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(52.dp)
-                    .clip(RoundedCornerShape(16.dp))
+                    .size(WALLET_ICON_BOX_SIZE)
+                    .clip(RoundedCornerShape(8.dp))
                     .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(Color(0xFF00D2FF), Color(0xFF3A7BD5))
-                        )
+                        if (isArchived) LuminousSurfaceContainerHigh
+                        else WalletIconMap.backgroundFor(wallet.type)
                     ),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = WalletIconMap.toVector(wallet.icon),
+                    imageVector = WalletIconMap.toVector(wallet.icon, wallet.type),
                     contentDescription = null,
-                    modifier = Modifier.size(24.dp),
-                    tint = Color.White
+                    modifier = Modifier.size(WALLET_ICON_SIZE),
+                    tint = if (isArchived) LuminousOnSurfaceVariant else WalletIconMap.tintFor(wallet.type)
                 )
             }
 
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(12.dp))
 
-            Column(modifier = Modifier.weight(1f)) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(
                     text = wallet.name,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (isArchived) LuminousOnSurfaceVariant else LuminousOnSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (isArchived) {
+                    Text(
+                        text = "Đã lưu trữ",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = LuminousOnSurfaceVariant
+                    )
+                }
+            }
+
+            if (isArchived) {
+                TextButton(
+                    onClick = onUnarchive,
+                    shape = RoundedCornerShape(6.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Unarchive,
+                        contentDescription = null,
+                        tint = OceanBlue600,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Bỏ lưu trữ",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = OceanBlue600
+                    )
+                }
+            } else {
+                Text(
+                    text = formatWalletAmount(wallet.balance),
                     fontSize = 16.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = Color(0xFF1A1C1E)
-                )
-                Text(
-                    text = "${String.format("%,.0f", wallet.balance)} đ",
-                    fontSize = 14.sp,
-                    color = Color(0xFF4A5568),
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Black,
+                    color = LuminousOnSurface,
+                    textAlign = TextAlign.End,
+                    maxLines = 1,
+                    modifier = Modifier.padding(start = 12.dp)
                 )
             }
-
-            Surface(
-                color = Color(0xFF003CC7).copy(alpha = 0.08f),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Text(
-                    text = wallet.type.displayName,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF003CC7),
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.width(10.dp))
-
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = Color(0xFFCBD5E0),
-                modifier = Modifier.size(22.dp)
-            )
         }
     }
+}
+
+private fun formatWalletAmount(amount: Double): String {
+    val formatter = NumberFormat.getNumberInstance(Locale.forLanguageTag("vi-VN"))
+    return "${formatter.format(amount)} đ"
 }

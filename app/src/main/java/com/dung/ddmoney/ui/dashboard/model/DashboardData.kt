@@ -98,10 +98,12 @@ data class Wallet(
     val bank: String = "",
     val cardNumber: String = "",
     val color: Color,
+    val colorHex: String = "#4659A6",
     val icon: String = "wallet",
     val currency: String = "VND",
     val isDefault: Boolean = false,
     val isArchived: Boolean = false,
+    val isIncludedInTotal: Boolean = true,
     val sortOrder: Int = 0,
     // Credit card specific
     val creditLimit: Double? = null,

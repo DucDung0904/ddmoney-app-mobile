@@ -1,6 +1,7 @@
 package com.dung.ddmoney.ui.home.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -23,6 +24,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dung.ddmoney.ui.theme.*
+import java.text.NumberFormat
+import java.util.Locale
 
 /**
  * HomeHeroSection
@@ -188,34 +191,36 @@ private fun BalanceSummaryCard(
     Surface(
         modifier       = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp),
-        shape          = RoundedCornerShape(26.dp),
+            .padding(horizontal = 20.dp),
+        shape          = RoundedCornerShape(6.dp),
         color          = HomeFrameSurface,
-        shadowElevation = 14.dp
+        border         = BorderStroke(1.dp, HomeFrameBorder.copy(alpha = 0.55f)),
+        shadowElevation = 6.dp
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 20.dp)
+                .padding(horizontal = 22.dp, vertical = 14.dp)
         ) {
             Text(
                 text       = "Tổng số dư",
-                fontSize   = 12.sp,
-                color      = NeutralGray600,
+                fontSize   = 18.sp,
+                color      = Color.Black,
                 fontWeight = FontWeight.Medium,
-                letterSpacing = 0.5.sp
+                letterSpacing = 0.2.sp
             )
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(5.dp))
             Row(
                 verticalAlignment    = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
                     text       = if (isVisible)
-                        "${String.format("%,.0f", balance)} đ"
+                        formatBalanceAmount(balance)
                     else
                         "••••••••• đ",
-                    fontSize   = 30.sp,
+                    fontSize   = 26.sp,
+                    lineHeight = 30.sp,
                     fontWeight = FontWeight.Black,
                     color      = OceanBlue800
                 )
@@ -224,7 +229,7 @@ private fun BalanceSummaryCard(
                         .clip(CircleShape)
                         .background(OceanBlue50)
                         .clickable { onToggle() }
-                        .padding(7.dp),
+                        .padding(6.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -233,11 +238,16 @@ private fun BalanceSummaryCard(
                         else
                             Icons.Outlined.VisibilityOff,
                         contentDescription = "Ẩn/hiện số dư",
-                        modifier = Modifier.size(17.dp),
+                        modifier = Modifier.size(15.dp),
                         tint     = OceanBlue600
                     )
                 }
             }
         }
     }
+}
+
+private fun formatBalanceAmount(amount: Double): String {
+    val formatter = NumberFormat.getNumberInstance(Locale.forLanguageTag("vi-VN"))
+    return "${formatter.format(amount)} đ"
 }

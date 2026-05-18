@@ -23,8 +23,10 @@ import com.dung.ddmoney.ui.analytics.AnalyticsScreen
 import com.dung.ddmoney.ui.auth.*
 import com.dung.ddmoney.ui.home.HomeScreen
 import com.dung.ddmoney.ui.profile.ProfileScreen
+import com.dung.ddmoney.ui.wallets.WalletEditorScreen
 import com.dung.ddmoney.ui.wallets.WalletListScreen
 import com.dung.ddmoney.ui.budget.BudgetScreen
+import com.dung.ddmoney.ui.dashboard.model.Wallet
 import kotlinx.coroutines.launch
 
 // Định nghĩa hiệu ứng Micro-interaction chung
@@ -147,6 +149,8 @@ fun MainContainer(viewModel: AppViewModel, rootNavController: NavHostController)
 
     val state by viewModel.state.collectAsState()
     var showAddTransaction by remember { mutableStateOf(false) }
+    var walletEditorTarget by remember { mutableStateOf<Wallet?>(null) }
+    var showWalletEditor by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -248,20 +252,40 @@ fun MainContainer(viewModel: AppViewModel, rootNavController: NavHostController)
                         composable(NavItem.Home.route) {
                             HomeScreen(
                                     userName = state.userInfo.name,
-                                    totalBalance = state.wallets.sumOf { it.balance },
+                                    totalBalance =
+                                            state.wallets
+                                                    .filter { it.isIncludedInTotal }
+                                                    .sumOf { it.balance },
                                     wallets = state.wallets,
                                     categories = state.categories,
                                     transactions = state.transactions,
                                     recentTransactions = state.transactions.take(10),
-                                    onSeeAllWallets = { navController.navigate("wallet_list") }
+                                    onSeeAllWallets = { navController.navigate("wallet_list") },
+                                    onAddWallet = {
+                                        walletEditorTarget = null
+                                        showWalletEditor = true
+                                    }
                             )
                         }
                         composable("wallet_list") {
                             WalletListScreen(
-                                    wallets = state.wallets,
+                                    wallets = state.allWallets,
                                     onBack = { navController.popBackStack() },
-                                    onAddWallet = { /* Navigate to Add Wallet */},
-                                    onWalletClick = { /* Navigate to Wallet Details */}
+                                    onAddWallet = {
+                                        walletEditorTarget = null
+                                        showWalletEditor = true
+                                    },
+                                    onWalletClick = { wallet ->
+                                        walletEditorTarget = wallet
+                                        showWalletEditor = true
+                                    },
+                                    onUnarchiveWallet = { wallet ->
+                                        viewModel.unarchiveWallet(wallet.id) {
+                                            scope.launch {
+                                                snackbarHostState.showSnackbar("Đã bỏ lưu trữ ví")
+                                            }
+                                        }
+                                    }
                             )
                         }
                         composable(NavItem.Budget.route) { BudgetScreen(viewModel) }
@@ -355,6 +379,57 @@ fun MainContainer(viewModel: AppViewModel, rootNavController: NavHostController)
                         }
                     },
                     onDismiss = { showAddTransaction = false }
+            )
+        }
+
+        AnimatedVisibility(
+                visible = showWalletEditor,
+                modifier = Modifier.fillMaxSize(),
+                enter =
+                        slideInHorizontally(
+                                initialOffsetX = { it },
+                                animationSpec = tween(360, easing = FastOutSlowInEasing)
+                        ) +
+                                fadeIn(
+                                        animationSpec =
+                                                tween(220, easing = FastOutSlowInEasing)
+                                ),
+                exit =
+                        slideOutHorizontally(
+                                targetOffsetX = { it },
+                                animationSpec = tween(300, easing = FastOutSlowInEasing)
+                        ) +
+                                fadeOut(
+                                        animationSpec =
+                                                tween(180, easing = FastOutSlowInEasing)
+                                )
+        ) {
+            WalletEditorScreen(
+                    wallet = walletEditorTarget,
+                    wallets = state.wallets,
+                    onDismiss = { showWalletEditor = false },
+                    onSave = { request ->
+                        val editingWallet = walletEditorTarget
+                        if (editingWallet == null) {
+                            viewModel.createWallet(request) {
+                                showWalletEditor = false
+                            }
+                        } else {
+                            viewModel.updateWallet(editingWallet.id, request) {
+                                showWalletEditor = false
+                            }
+                        }
+                    },
+                    onArchive = { wallet ->
+                        viewModel.archiveWallet(wallet.id) {
+                            showWalletEditor = false
+                        }
+                    },
+                    onTransfer = { fromWallet, toWallet, amount ->
+                        viewModel.transferWallet(fromWallet.id, toWallet.id, amount) {
+                            showWalletEditor = false
+                        }
+                    }
             )
         }
     }

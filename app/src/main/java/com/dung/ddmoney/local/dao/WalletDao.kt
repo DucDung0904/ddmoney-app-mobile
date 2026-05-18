@@ -14,7 +14,7 @@ interface WalletDao {
     fun observeAll(): Flow<List<WalletEntity>>
 
     /** Active (non-archived) wallets only — for quick wallet UI */
-    @Query("SELECT * FROM wallets WHERE isArchived = 0 ORDER BY sortOrder ASC, name ASC")
+    @Query("SELECT * FROM wallets WHERE isArchived = 0 AND isActive = 1 ORDER BY sortOrder ASC, name ASC")
     fun observeActive(): Flow<List<WalletEntity>>
 
     // ─── Single reads ────────────────────────────────────────────────────
@@ -31,7 +31,7 @@ interface WalletDao {
     // ─── Default wallet logic ────────────────────────────────────────────
 
     /** Get the current default wallet */
-    @Query("SELECT * FROM wallets WHERE isDefault = 1 LIMIT 1")
+    @Query("SELECT * FROM wallets WHERE isDefault = 1 AND isArchived = 0 AND isActive = 1 LIMIT 1")
     suspend fun getDefault(): WalletEntity?
 
     /** Unset ALL defaults — called before setting a new one (single-default rule) */
@@ -52,11 +52,11 @@ interface WalletDao {
     // ─── Archive / soft-delete ───────────────────────────────────────────
 
     /** Archive a wallet (soft-delete) */
-    @Query("UPDATE wallets SET isArchived = 1, updatedAt = :timestamp WHERE id = :id")
+    @Query("UPDATE wallets SET isArchived = 1, isActive = 0, isDefault = 0, updatedAt = :timestamp WHERE id = :id")
     suspend fun archive(id: String, timestamp: Long = System.currentTimeMillis())
 
     /** Unarchive (restore) a wallet */
-    @Query("UPDATE wallets SET isArchived = 0, updatedAt = :timestamp WHERE id = :id")
+    @Query("UPDATE wallets SET isArchived = 0, isActive = 1, updatedAt = :timestamp WHERE id = :id")
     suspend fun unarchive(id: String, timestamp: Long = System.currentTimeMillis())
 
     // ─── Upsert / write ──────────────────────────────────────────────────

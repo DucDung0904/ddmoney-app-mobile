@@ -42,6 +42,9 @@ interface ApiService {
     @DELETE("api/wallets/{id}")
     suspend fun deleteWallet(@Path("id") id: Long): Response<Void>
 
+    @POST("api/wallets/{id}/restore")
+    suspend fun restoreWallet(@Path("id") id: Long): WalletResponse
+
     @POST("api/wallets/transfer")
     suspend fun transfer(@Body req: TransferRequest): Map<String, String>
 
