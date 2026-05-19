@@ -5,7 +5,10 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -19,6 +22,7 @@ import com.dung.ddmoney.ui.theme.*
  * HomeScreen — entry point.
  * Layout is assembled here; all UI blocks live in ui/home/components/.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     userName: String = "Người dùng",
@@ -28,10 +32,12 @@ fun HomeScreen(
     transactions: List<Transaction> = emptyList(),
     recentTransactions: List<Transaction> = emptyList(),
     onSeeAllWallets: () -> Unit = {},
+    onSeeAllTransactions: () -> Unit = {},
     onAddWallet: () -> Unit = {},
     onViewReport: () -> Unit = {}
 ) {
     var isBalanceVisible by remember { mutableStateOf(true) }
+    var selectedTransaction by remember { mutableStateOf<Transaction?>(null) }
 
     Box(
         modifier = Modifier
@@ -76,7 +82,7 @@ fun HomeScreen(
 
             // ── 4. Recent transactions header + list ─────────────────────────
             item {
-                TransactionSectionHeader(onSeeAll = {})
+                TransactionSectionHeader(onSeeAll = onSeeAllTransactions)
             }
 
             item {
@@ -84,7 +90,7 @@ fun HomeScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp),
-                    shape    = RoundedCornerShape(6.dp),
+                    shape    = RoundedCornerShape(24.dp),
                     color    = HomeFrameSurface,
                     border   = BorderStroke(1.dp, HomeFrameBorder.copy(alpha = 0.55f)),
                     shadowElevation = 6.dp
@@ -97,7 +103,8 @@ fun HomeScreen(
                                 TransactionPill(
                                     transaction = tx,
                                     isVisible   = isBalanceVisible,
-                                    isLast      = index == recentTransactions.lastIndex
+                                    isLast      = index == recentTransactions.lastIndex,
+                                    onClick     = { selectedTransaction = tx }
                                 )
                             }
                         }
@@ -105,6 +112,20 @@ fun HomeScreen(
                 }
             }
             item { Spacer(modifier = Modifier.height(20.dp)) }
+        }
+
+        selectedTransaction?.let { transaction ->
+            ModalBottomSheet(
+                onDismissRequest = { selectedTransaction = null },
+                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                containerColor = LuminousSurfaceContainerLowest
+            ) {
+                HomeTransactionDetailSheet(
+                    transaction = transaction,
+                    isVisible = isBalanceVisible,
+                    onDismiss = { selectedTransaction = null }
+                )
+            }
         }
     }
 }

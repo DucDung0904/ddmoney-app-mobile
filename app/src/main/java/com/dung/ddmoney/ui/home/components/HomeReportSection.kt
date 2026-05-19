@@ -118,7 +118,7 @@ fun HomeReportSection(
         // ── Main Card ─────────────────────────────────────────────────────────
         Surface(
             modifier        = Modifier.fillMaxWidth(),
-            shape           = RoundedCornerShape(6.dp),
+            shape           = RoundedCornerShape(24.dp),
             color           = HomeFrameSurface,
             border          = BorderStroke(1.dp, HomeFrameBorder.copy(alpha = 0.55f)),
             shadowElevation = 6.dp
@@ -444,7 +444,7 @@ private fun TopCategoriesPreview(
                 scaleX = pressScale
                 scaleY = pressScale
             }
-            .clip(RoundedCornerShape(6.dp))
+            .clip(RoundedCornerShape(20.dp))
             .background(containerColor)
             .clickable(
                 interactionSource = interactionSource,

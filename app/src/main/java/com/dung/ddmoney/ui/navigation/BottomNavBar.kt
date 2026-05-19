@@ -41,7 +41,7 @@ sealed class NavItem(
         val icon: ImageVector,
         val selectedIcon: ImageVector
 ) {
-    object Home : NavItem("home", "Trang chủ", Icons.Outlined.GridView, Icons.Filled.GridView)
+    object Home : NavItem("home", "Tổng quan", Icons.Outlined.GridView, Icons.Filled.GridView)
     object Budget :
             NavItem(
                     "budget",
@@ -51,7 +51,7 @@ sealed class NavItem(
             )
     object Ledger :
             NavItem("ledger", "Sổ chi tiêu", Icons.Outlined.ReceiptLong, Icons.Outlined.ReceiptLong)
-    object Profile : NavItem("profile", "Cá nhân", Icons.Outlined.Person, Icons.Outlined.Person)
+    object Profile : NavItem("profile", "Tài khoản", Icons.Outlined.Person, Icons.Outlined.Person)
 }
 
 @Composable
@@ -83,14 +83,14 @@ fun BottomNavBar(currentRoute: String, onNavigate: (String) -> Unit, onAddClick:
                 NavBarItem(NavItem.Home, currentRoute == NavItem.Home.route) {
                     onNavigate(NavItem.Home.route)
                 }
-                NavBarItem(NavItem.Budget, currentRoute == NavItem.Budget.route) {
-                    onNavigate(NavItem.Budget.route)
+                NavBarItem(NavItem.Ledger, currentRoute == NavItem.Ledger.route) {
+                    onNavigate(NavItem.Ledger.route)
                 }
 
                 Spacer(modifier = Modifier.width(48.dp)) // Chừa chỗ cho nút Add
 
-                NavBarItem(NavItem.Ledger, currentRoute == NavItem.Ledger.route) {
-                    onNavigate(NavItem.Ledger.route)
+                NavBarItem(NavItem.Budget, currentRoute == NavItem.Budget.route) {
+                    onNavigate(NavItem.Budget.route)
                 }
                 NavBarItem(NavItem.Profile, currentRoute == NavItem.Profile.route) {
                     onNavigate(NavItem.Profile.route)

@@ -22,8 +22,8 @@ import com.dung.ddmoney.network.dto.AuthRequest
 import com.dung.ddmoney.network.dto.RegisterRequest
 import com.dung.ddmoney.ui.analytics.AnalyticsScreen
 import com.dung.ddmoney.ui.auth.*
+import com.dung.ddmoney.ui.expensebook.ExpenseBookScreen
 import com.dung.ddmoney.ui.home.HomeScreen
-import com.dung.ddmoney.ui.ledger.LedgerScreen
 import com.dung.ddmoney.ui.profile.ProfileScreen
 import com.dung.ddmoney.ui.wallets.WalletEditorScreen
 import com.dung.ddmoney.ui.wallets.WalletListScreen
@@ -332,6 +332,15 @@ fun MainContainer(viewModel: AppViewModel, rootNavController: NavHostController)
                                     transactions = state.transactions,
                                     recentTransactions = state.transactions.take(10),
                                     onSeeAllWallets = { navController.navigate("wallet_list") },
+                                    onSeeAllTransactions = {
+                                        navController.navigate(NavItem.Ledger.route) {
+                                            popUpTo(navController.graph.findStartDestination().id) {
+                                                saveState = true
+                                            }
+                                            launchSingleTop = true
+                                            restoreState = true
+                                        }
+                                    },
                                     onAddWallet = {
                                         walletEditorTarget = null
                                         showWalletEditor = true
@@ -362,9 +371,9 @@ fun MainContainer(viewModel: AppViewModel, rootNavController: NavHostController)
                         }
                         composable(NavItem.Budget.route) { BudgetScreen(viewModel) }
                         composable(NavItem.Ledger.route) {
-                            LedgerScreen(
-                                    transactions = state.transactions,
-                                    categories = state.categories
+                            ExpenseBookScreen(
+                                    categories = state.categories,
+                                    wallets = state.wallets
                             )
                         }
                         composable(NavItem.Profile.route) {

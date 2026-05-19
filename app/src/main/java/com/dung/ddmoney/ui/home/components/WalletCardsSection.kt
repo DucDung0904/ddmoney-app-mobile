@@ -25,8 +25,8 @@ import com.dung.ddmoney.ui.wallets.WalletIconMap
 import com.dung.ddmoney.ui.components.formatMoneyDisplay
 
 // ─── Dimensions ───────────────────────────────────────────────────────────────
-private val WALLET_PANEL_SHAPE = RoundedCornerShape(6.dp)
-private val WALLET_ICON_SHAPE = RoundedCornerShape(8.dp)
+private val WALLET_PANEL_SHAPE = RoundedCornerShape(24.dp)
+private val WALLET_ICON_SHAPE = RoundedCornerShape(14.dp)
 private val WALLET_ICON_BOX_SIZE = 38.dp
 private val WALLET_ICON_SIZE = 23.dp
 private val WALLET_ROW_HEIGHT = 56.dp
@@ -156,7 +156,7 @@ private fun WalletSectionHeader(
                 fontWeight = FontWeight.Bold,
                 color = OceanBlue600,
                 modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(RoundedCornerShape(16.dp))
                     .clickable { onSeeAll() }
                     .padding(horizontal = 8.dp, vertical = 5.dp)
             )

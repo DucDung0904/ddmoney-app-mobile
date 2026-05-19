@@ -191,7 +191,7 @@ private fun BalanceSummaryCard(
         modifier       = Modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp),
-        shape          = RoundedCornerShape(6.dp),
+        shape          = RoundedCornerShape(24.dp),
         color          = HomeFrameSurface,
         border         = BorderStroke(1.dp, HomeFrameBorder.copy(alpha = 0.55f)),
         shadowElevation = 6.dp

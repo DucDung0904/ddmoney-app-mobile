@@ -9,7 +9,7 @@ import java.util.concurrent.TimeUnit
 object RetrofitClient {
 
 //    private const val BASE_URL = "http://10.0.2.2:8080/"
-    private const val BASE_URL = "http://172.20.10.5:8080/"
+    private const val BASE_URL = "http://192.168.0.220:8080/"
     
     private var tokenManager: TokenManager? = null
     @Volatile
@@ -68,12 +68,19 @@ object RetrofitClient {
         .writeTimeout(30, TimeUnit.SECONDS)
         .build()
 
-    val instance: ApiService by lazy {
+    private val retrofit: Retrofit by lazy {
         Retrofit.Builder()
             .baseUrl(BASE_URL)
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
-            .create(ApiService::class.java)
+    }
+
+    val instance: ApiService by lazy {
+        retrofit.create(ApiService::class.java)
+    }
+
+    val expenseBookService: ExpenseBookApiService by lazy {
+        retrofit.create(ExpenseBookApiService::class.java)
     }
 }

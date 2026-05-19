@@ -204,7 +204,7 @@ fun ExpenseBreakdownDialog(report: ExpenseReport, onDismiss: () -> Unit) {
                 Surface(
                         modifier =
                                 Modifier.fillMaxWidth()
-                                        .fillMaxHeight(0.96f)
+                                        .fillMaxHeight(0.95f)
                                         .offset {
                                             IntOffset(
                                                     x = 0,
