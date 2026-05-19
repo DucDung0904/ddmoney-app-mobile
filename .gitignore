@@ -14,3 +14,5 @@
 .cxx
 local.properties
 .agents\
+/sql_ddfood.sql
+/docs
