@@ -1,11 +1,6 @@
 # Android Studio / IntelliJ
 *.iml
-.idea/caches/
-.idea/libraries/
-.idea/modules.xml
-.idea/workspace.xml
-.idea/navEditor.xml
-.idea/assetWizardSettings.xml
+.idea/
 
 # Gradle
 .gradle/
@@ -31,4 +26,4 @@ Thumbs.db
 sql_ddfood.sql
 
 # Docs
-docs/git add .
+docs/
