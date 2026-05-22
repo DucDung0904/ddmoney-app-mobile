@@ -3,7 +3,9 @@ package com.dung.ddmoney.repository
 import android.content.Context
 import com.dung.ddmoney.local.SyncStatus
 import com.dung.ddmoney.local.SyncWorker
+import com.dung.ddmoney.local.dao.CategoryDao
 import com.dung.ddmoney.local.dao.TransactionDao
+import com.dung.ddmoney.local.dao.WalletDao
 import com.dung.ddmoney.local.entity.TransactionEntity
 import com.dung.ddmoney.local.toEntity
 import com.dung.ddmoney.local.toModel
@@ -14,13 +16,16 @@ import com.dung.ddmoney.network.dto.TransactionRequest
 import com.dung.ddmoney.network.dto.TransactionResponse
 import com.dung.ddmoney.network.dto.TransactionSummary
 import com.dung.ddmoney.ui.dashboard.model.Transaction
+import java.util.Locale
+import java.util.UUID
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import java.util.UUID
 
 class TransactionRepository(
     private val api: ApiService,
     private val dao: TransactionDao,
+    private val walletDao: WalletDao,
+    private val categoryDao: CategoryDao,
     private val context: Context
 ) {
 
@@ -32,21 +37,31 @@ class TransactionRepository(
 
     /** Sync từ Server về Local (Download) */
     suspend fun sync(month: Int? = null, year: Int? = null): Result<Unit> = safeCall {
+        val pendingTransactions =
+            if (month == null && year == null) {
+                dao.getPendingTransactions()
+            } else {
+                emptyList()
+            }
         val remote = api.getTransactions(month, year)
         if (month == null && year == null) {
-            dao.deleteAll()
+            dao.deleteSynced()
         }
         dao.upsertAll(remote.map { it.toEntity() })
+        if (pendingTransactions.isNotEmpty()) {
+            dao.upsertAll(pendingTransactions)
+        }
     }
 
-    /** Tạo mới: Gửi lên Server trước, nhận về lưu Local sau (Đồng bộ ngay để tránh bị xóa khi syncAll) */
-    suspend fun create(req: TransactionRequest): Result<Unit> = safeCall {
-        // 1. Gửi lên server ngay lập tức
-        val response = api.createTransaction(req)
-        
-        // 2. Lưu data chuẩn từ server về local DB
-        dao.upsert(response.toEntity())
-    }
+    /** Tạo mới offline-first: ghi Room trước, sau đó WorkManager tự đẩy lên server khi có mạng. */
+    suspend fun create(req: TransactionRequest): Result<Unit> =
+        try {
+            createPendingLocal(req)
+            SyncWorker.enqueue(context)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
 
     suspend fun getSummary(month: Int, year: Int): Result<TransactionSummary> = safeCall {
         api.getTransactionSummary(month, year)
@@ -74,4 +89,48 @@ class TransactionRepository(
     } catch (e: Exception) {
         Result.failure(e)
     }
+
+    private suspend fun createPendingLocal(req: TransactionRequest) {
+        val wallet = walletDao.getByServerId(req.walletId)
+        val category = categoryDao.getByServerId(req.categoryId)
+        val title = req.title?.takeIf { it.isNotBlank() } ?: category?.name
+        val transferWalletId = req.transferToWalletId
+        val transferToWalletName =
+            if (transferWalletId != null) walletDao.getByServerId(transferWalletId)?.name else null
+
+        dao.upsert(
+            TransactionEntity(
+                id = UUID.randomUUID().toString(),
+                serverId = null,
+                title = title,
+                amount = req.amount,
+                type = req.type,
+                date = req.date,
+                walletId = req.walletId,
+                walletName = wallet?.name,
+                categoryId = req.categoryId,
+                categoryName = category?.name,
+                categoryIcon = category?.icon,
+                categoryColor = category?.colorHex,
+                transferToWalletId = req.transferToWalletId,
+                transferToWalletName = transferToWalletName,
+                note = req.note,
+                syncStatus = SyncStatus.PENDING_INSERT
+            )
+        )
+
+        applyLocalWalletDelta(req)
+    }
+
+    private suspend fun applyLocalWalletDelta(req: TransactionRequest) {
+        when (req.type.uppercase(Locale.ROOT)) {
+            "INCOME" -> walletDao.adjustBalanceByServerId(req.walletId, req.amount)
+            "EXPENSE" -> walletDao.adjustBalanceByServerId(req.walletId, -req.amount)
+            "TRANSFER" -> {
+                walletDao.adjustBalanceByServerId(req.walletId, -req.amount)
+                req.transferToWalletId?.let { walletDao.adjustBalanceByServerId(it, req.amount) }
+            }
+        }
+    }
+
 }

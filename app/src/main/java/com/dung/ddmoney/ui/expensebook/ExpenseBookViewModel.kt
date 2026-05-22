@@ -1,7 +1,9 @@
 package com.dung.ddmoney.ui.expensebook
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.dung.ddmoney.local.AppDatabase
 import com.dung.ddmoney.repository.ExpenseBookRepository
 import java.time.LocalDate
 import kotlinx.coroutines.async
@@ -9,18 +11,23 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-class ExpenseBookViewModel(
-    private val repository: ExpenseBookRepository = ExpenseBookRepository()
-) : ViewModel() {
+class ExpenseBookViewModel(application: Application) : AndroidViewModel(application) {
+    private val transactionDao = AppDatabase.getInstance(application).transactionDao()
+    private val repository =
+        ExpenseBookRepository(
+            transactionDao = transactionDao
+        )
 
     private val _uiState = MutableStateFlow(ExpenseBookUiState())
     val uiState: StateFlow<ExpenseBookUiState> = _uiState.asStateFlow()
 
     init {
         loadExpenseBook()
+        observeLocalTransactions()
     }
 
     fun selectPeriod(period: ExpenseBookPeriod) {
@@ -223,6 +230,14 @@ class ExpenseBookViewModel(
                         ),
                     errorMessage = null
                 )
+            }
+        }
+    }
+
+    private fun observeLocalTransactions() {
+        viewModelScope.launch {
+            transactionDao.observeAll().drop(1).collect {
+                loadExpenseBook(isRefresh = true)
             }
         }
     }

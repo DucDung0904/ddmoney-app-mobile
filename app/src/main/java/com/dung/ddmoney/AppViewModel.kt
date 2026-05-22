@@ -54,7 +54,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val authRepo = AuthRepository(api, tokenManager)
     private val walletRepo = WalletRepository(api, db.walletDao())
     private val categoryRepo = CategoryRepository(api, db.categoryDao())
-    private val transactionRepo = TransactionRepository(api, db.transactionDao(), application)
+    private val transactionRepo =
+            TransactionRepository(
+                    api,
+                    db.transactionDao(),
+                    db.walletDao(),
+                    db.categoryDao(),
+                    application
+            )
     private val budgetRepo =
             BudgetRepository(api, db.budgetDao(), db.transactionDao(), db.categoryDao())
 
@@ -525,7 +532,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     .create(req)
                     .onSuccess {
                         onComplete()
-                        syncAll() // Sync to update wallets and other data
                     }
                     .onFailure { e -> _error.value = "Không thể lưu giao dịch: ${e.message}" }
             _isLoading.value = false

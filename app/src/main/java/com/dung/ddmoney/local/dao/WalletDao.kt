@@ -68,6 +68,13 @@ interface WalletDao {
     @Upsert
     suspend fun upsert(wallet: WalletEntity)
 
+    @Query("UPDATE wallets SET balance = balance + :delta, updatedAt = :timestamp WHERE serverId = :serverId")
+    suspend fun adjustBalanceByServerId(
+        serverId: Long,
+        delta: Double,
+        timestamp: Long = System.currentTimeMillis()
+    )
+
     // ─── Delete ──────────────────────────────────────────────────────────
 
     @Query("DELETE FROM wallets WHERE serverId = :serverId")

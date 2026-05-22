@@ -14,6 +14,7 @@ class SyncWorker(appContext: Context, workerParams: WorkerParameters) :
         val api = RetrofitClient.instance
         
         val pendingTx = db.transactionDao().getPendingTransactions()
+        var hasSyncedTransactions = false
 
         for (tx in pendingTx) {
             try {
@@ -35,6 +36,7 @@ class SyncWorker(appContext: Context, workerParams: WorkerParameters) :
                     db.transactionDao().deleteByLocalId(tx.id)
                     // Insert row mới từ server với ID đồng nhất
                     db.transactionDao().upsert(response.toEntity())
+                    hasSyncedTransactions = true
                 }
                 // (Bạn có thể thêm xử lý cho UPDATE và DELETE ở đây tương tự)
 
@@ -42,6 +44,11 @@ class SyncWorker(appContext: Context, workerParams: WorkerParameters) :
                 // Nếu lỗi mạng, trả về retry để WorkManager thử lại sau
                 return Result.retry()
             }
+        }
+
+        if (hasSyncedTransactions) {
+            val remoteWallets = api.getWallets()
+            db.walletDao().upsertAll(remoteWallets.map { it.toEntity() })
         }
 
         return Result.success()

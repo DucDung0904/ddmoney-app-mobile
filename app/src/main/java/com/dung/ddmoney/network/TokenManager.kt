@@ -42,12 +42,18 @@ class TokenManager(context: Context) {
     }
 
     fun hasValidToken(): Boolean {
-        val token = getToken() ?: return false
-        if (isTokenExpired(token)) {
-            clearToken()
-            return false
-        }
-        return true
+        val token = getToken()
+        if (!token.isNullOrBlank() && !isTokenExpired(token)) return true
+
+        return hasRefreshToken()
+    }
+
+    fun hasRefreshToken(): Boolean {
+        val refreshToken = getRefreshToken() ?: return false
+        if (refreshToken.isBlank()) return false
+
+        // Refresh tokens can be opaque strings. Only check expiry when it looks like a JWT.
+        return refreshToken.split(".").size != 3 || !isTokenExpired(refreshToken)
     }
 
     fun isTokenExpired(token: String = getToken().orEmpty()): Boolean {
