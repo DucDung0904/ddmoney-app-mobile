@@ -59,8 +59,7 @@ fun OnboardingScreen(
         var selectedCurrency by remember { mutableStateOf(Currency.VND) }
         var walletName by remember { mutableStateOf("") }
         var walletBalanceText by remember { mutableStateOf("") }
-        // Khởi tạo từ default key trong WalletIconMap
-        var selectedIcon by remember { mutableStateOf(WalletIconMap.toVector(WalletIconMap.DEFAULT_KEY)) }
+        var selectedIconKey by remember { mutableStateOf(WalletIconMap.DEFAULT_KEY) }
         var selectedWalletType by remember { mutableStateOf(WalletType.CASH) }
 
         val focusManager = LocalFocusManager.current
@@ -102,8 +101,8 @@ fun OnboardingScreen(
                                                 WalletStep(
                                                         walletName = walletName,
                                                         onNameChange = { walletName = it },
-                                                        selectedIcon = selectedIcon,
-                                                        onIconSelect = { selectedIcon = it },
+                                                        selectedIconKey = selectedIconKey,
+                                                        onIconSelect = { selectedIconKey = it },
                                                         selectedWalletType = selectedWalletType,
                                                         onWalletTypeSelect = { selectedWalletType = it },
                                                         focusManager = focusManager
@@ -117,7 +116,9 @@ fun OnboardingScreen(
                         val buttonText = if (step == 0) "Tiếp tục" else "Xong"
                         val buttonIcon =
                                 if (step == 0) Icons.Filled.ArrowForward else Icons.Filled.Check
-                        val isEnabled = if (step == 1) walletName.isNotBlank() else true
+                        val isEnabled = if (step == 1) {
+                                walletName.isNotBlank() && WalletIconMap.hasSelectedIcon(selectedIconKey)
+                        } else true
 
                         Button(
                                 onClick = {
@@ -129,7 +130,7 @@ fun OnboardingScreen(
                                                         selectedCurrency.code,
                                                         walletName.ifBlank { "Ví của tôi" },
                                                         parseMoneyInput(walletBalanceText),
-                                                        WalletIconMap.toKey(selectedIcon),   // chuyển ImageVector → key string lưu DB
+                                                        selectedIconKey,
                                                         selectedWalletType
                                                 )
                                         }
@@ -312,26 +313,14 @@ private fun CurrencyStep(selected: Currency, onSelect: (Currency) -> Unit) {
 private fun WalletStep(
         walletName: String,
         onNameChange: (String) -> Unit,
-        selectedIcon: ImageVector,
-        onIconSelect: (ImageVector) -> Unit,
+        selectedIconKey: String,
+        onIconSelect: (String) -> Unit,
         selectedWalletType: WalletType,
         onWalletTypeSelect: (WalletType) -> Unit,
         focusManager: androidx.compose.ui.focus.FocusManager
 ) {
         var showIconPicker by remember { mutableStateOf(false) }
-        val icons =
-                listOf(
-                        Icons.Outlined.AccountBalanceWallet,
-                        Icons.Outlined.Savings,
-                        Icons.Outlined.ShoppingCart,
-                        Icons.Outlined.DirectionsCar,
-                        Icons.Outlined.Home,
-                        Icons.Outlined.Flight,
-                        Icons.Outlined.Restaurant,
-                        Icons.Outlined.Celebration,
-                        Icons.Outlined.School,
-                        Icons.Outlined.MoreHoriz
-                )
+        val icons = WalletIconMap.optionsFor(selectedWalletType)
 
         Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -499,17 +488,26 @@ private fun WalletStep(
                         Box(
                                 modifier =
                                         Modifier.size(64.dp)
-                                                .clip(RoundedCornerShape(16.dp))
+                                                .clip(CircleShape)
                                                 .background(Color(0xFFEFEFFA))
                                                 .clickable { showIconPicker = true },
                                 contentAlignment = Alignment.Center
                         ) {
-                                Icon(
-                                        imageVector = selectedIcon,
-                                        contentDescription = "Chọn biểu tượng",
-                                        tint = Color(0xFF0047FF),
-                                        modifier = Modifier.size(32.dp)
-                                )
+                                if (WalletIconMap.hasSelectedIcon(selectedIconKey)) {
+                                        WalletIconMap.WalletIcon(
+                                                key = selectedIconKey,
+                                                walletType = selectedWalletType,
+                                                contentDescription = "Biểu tượng ví",
+                                                modifier = Modifier.fillMaxSize()
+                                        )
+                                } else {
+                                        Icon(
+                                                imageVector = Icons.Outlined.Add,
+                                                contentDescription = "Chọn biểu tượng",
+                                                tint = Color(0xFF5A5D6B),
+                                                modifier = Modifier.size(30.dp)
+                                        )
+                                }
                         }
                 }
         }
@@ -535,8 +533,7 @@ private fun WalletStep(
                                 )
 
                                 // Icon grid inside BottomSheet
-                                val columns = 5
-                                val rows = icons.chunked(columns)
+                                val rows = icons.chunked(5)
                                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                                         rows.forEach { rowIcons ->
                                                 Row(
@@ -544,15 +541,13 @@ private fun WalletStep(
                                                         horizontalArrangement =
                                                                 Arrangement.SpaceBetween
                                                 ) {
-                                                        rowIcons.forEach { icon ->
-                                                                val isSelected = icon == selectedIcon
+                                                        rowIcons.forEach { option ->
+                                                                val isSelected = option.key == selectedIconKey
                                                                 Box(
                                                                         modifier =
                                                                                 Modifier.size(56.dp)
                                                                                         .clip(
-                                                                                                RoundedCornerShape(
-                                                                                                        16.dp
-                                                                                                )
+                                                                                                CircleShape
                                                                                         )
                                                                                         .background(
                                                                                                 if (isSelected
@@ -566,20 +561,16 @@ private fun WalletStep(
                                                                                                         )
                                                                                         )
                                                                                         .clickable {
-                                                                                                onIconSelect(icon)
+                                                                                                onIconSelect(option.key)
                                                                                                 showIconPicker = false
                                                                                         },
                                                                         contentAlignment = Alignment.Center
                                                                 ) {
-                                                                        Icon(
-                                                                                imageVector = icon,
-                                                                                contentDescription = null,
-                                                                                tint =
-                                                                                        if (isSelected)
-                                                                                                Color.White
-                                                                                        else
-                                                                                                Color(0xFF3B3D4A),
-                                                                                modifier = Modifier.size(24.dp)
+                                                                        WalletIconMap.WalletIcon(
+                                                                                key = option.key,
+                                                                                walletType = selectedWalletType,
+                                                                                contentDescription = option.label,
+                                                                                modifier = Modifier.fillMaxSize()
                                                                         )
                                                                 }
                                                         }

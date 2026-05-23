@@ -174,15 +174,14 @@ fun AddTransactionScreen(
                                         Box(
                                                 modifier =
                                                         Modifier.size(34.dp)
-                                                                .clip(RoundedCornerShape(9.dp))
-                                                                .background(WalletIconMap.backgroundFor(wallet.type)),
+                                                                .clip(CircleShape),
                                                 contentAlignment = Alignment.Center
                                         ) {
-                                            Icon(
-                                                    imageVector = WalletIconMap.toVector(wallet.icon, wallet.type),
+                                            WalletIconMap.WalletIcon(
+                                                    key = wallet.icon,
+                                                    walletType = wallet.type,
                                                     contentDescription = null,
-                                                    tint = WalletIconMap.tintFor(wallet.type),
-                                                    modifier = Modifier.size(20.dp)
+                                                    modifier = Modifier.fillMaxSize()
                                             )
                                         }
                                     } ?: Icon(
@@ -715,15 +714,14 @@ private fun WalletPickerSheet(
                         Box(
                                 modifier =
                                         Modifier.size(36.dp)
-                                                .clip(RoundedCornerShape(10.dp))
-                                                .background(WalletIconMap.backgroundFor(wallet.type)),
+                                                .clip(CircleShape),
                                 contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                    imageVector = WalletIconMap.toVector(wallet.icon, wallet.type),
+                            WalletIconMap.WalletIcon(
+                                    key = wallet.icon,
+                                    walletType = wallet.type,
                                     contentDescription = null,
-                                    tint = WalletIconMap.tintFor(wallet.type),
-                                    modifier = Modifier.size(21.dp)
+                                    modifier = Modifier.fillMaxSize()
                             )
                         }
                         Spacer(modifier = Modifier.width(16.dp))

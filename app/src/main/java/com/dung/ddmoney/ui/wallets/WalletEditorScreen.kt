@@ -20,6 +20,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.automirrored.outlined.NavigateNext
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountBalance
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.CreditCard
 import androidx.compose.material.icons.outlined.Payments
@@ -82,14 +83,8 @@ fun WalletEditorScreen(
     var selectedAddKind by remember(wallet?.id) {
         mutableStateOf(if (wallet == null) null else WalletAddKind.fromWalletType(wallet.type))
     }
-    var colorHex by remember(wallet?.id) {
-        mutableStateOf(wallet?.colorHex ?: WalletIconMap.colorHexFor(type))
-    }
     var iconKey by remember(wallet?.id) {
-        val savedIcon = wallet?.icon?.takeIf {
-            it.isNotBlank() && it != WalletIconMap.DEFAULT_KEY
-        }
-        mutableStateOf(savedIcon ?: WalletIconMap.defaultKeyFor(type))
+        mutableStateOf(wallet?.icon?.takeIf { it.isNotBlank() }.orEmpty())
     }
     var showIconPicker by remember(wallet?.id) { mutableStateOf(false) }
     var transferAmountText by remember(wallet?.id) { mutableStateOf("") }
@@ -108,6 +103,7 @@ fun WalletEditorScreen(
         selectedAddKind != null && isAddWalletFormValid(
             type = activeType,
             name = name,
+            iconKey = iconKey,
             balanceText = balanceText,
             creditLimitText = creditLimitText,
             currentDebtText = currentDebtText,
@@ -125,7 +121,6 @@ fun WalletEditorScreen(
             type = requestType.name,
             bankName = if (isEdit) bankName.trim().ifBlank { null } else null,
             cardNumber = if (isEdit) cardNumber.trim().ifBlank { null } else null,
-            colorHex = colorHex,
             icon = iconKey,
             currency = currency.ifBlank { "VND" },
             isDefault = isDefault,
@@ -144,8 +139,7 @@ fun WalletEditorScreen(
     val applyAddKind: (WalletAddKind) -> Unit = { kind ->
         selectedAddKind = kind
         type = kind.walletType
-        colorHex = WalletIconMap.colorHexFor(kind.walletType)
-        iconKey = WalletIconMap.defaultKeyFor(kind.walletType)
+        iconKey = ""
         when (kind) {
             WalletAddKind.Basic -> {
                 if (type !in BASIC_WALLET_TYPES) type = WalletType.CASH
@@ -363,8 +357,6 @@ fun WalletEditorScreen(
                         options = BASIC_WALLET_TYPE_OPTIONS,
                         onSelect = { selected ->
                             type = selected
-                            iconKey = WalletIconMap.defaultKeyFor(selected)
-                            colorHex = WalletIconMap.colorHexFor(selected)
                         }
                     )
                 }
@@ -685,6 +677,7 @@ private fun SavingsGoalProgress(
 private fun isAddWalletFormValid(
     type: WalletType,
     name: String,
+    iconKey: String,
     balanceText: String,
     creditLimitText: String,
     currentDebtText: String,
@@ -693,6 +686,7 @@ private fun isAddWalletFormValid(
     targetAmountText: String
 ): Boolean {
     if (name.isBlank()) return false
+    if (!WalletIconMap.hasSelectedIcon(iconKey)) return false
 
     return when (type) {
         WalletType.CREDIT_CARD -> {
@@ -1154,19 +1148,18 @@ private fun WalletNameRow(
         Box(
             modifier = Modifier
                 .size(44.dp)
-                .clip(RoundedCornerShape(6.dp))
-                .background(WalletIconMap.backgroundFor(wallet.type))
+                .clip(CircleShape)
                 .then(
                     if (onIconClick != null) Modifier.clickable(onClick = onIconClick)
                     else Modifier
                 ),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = WalletIconMap.toVector(iconKey, wallet.type),
+            WalletIconMap.WalletIcon(
+                key = iconKey,
+                walletType = wallet.type,
                 contentDescription = null,
-                tint = WalletIconMap.tintFor(wallet.type),
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.fillMaxSize()
             )
         }
         Spacer(modifier = Modifier.width(12.dp))
@@ -1466,17 +1459,29 @@ private fun WalletEditorPreview(
             Box(
                 modifier = Modifier
                     .size(46.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(WalletIconMap.backgroundFor(type))
+                    .clip(CircleShape)
+                    .background(
+                        if (WalletIconMap.hasSelectedIcon(iconKey)) Color.Transparent
+                        else LuminousSurfaceContainerLow
+                    )
                     .clickable(onClick = onIconClick),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = WalletIconMap.toVector(iconKey, type),
-                    contentDescription = null,
-                    tint = WalletIconMap.tintFor(type),
-                    modifier = Modifier.size(26.dp)
-                )
+                if (WalletIconMap.hasSelectedIcon(iconKey)) {
+                    WalletIconMap.WalletIcon(
+                        key = iconKey,
+                        walletType = type,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Outlined.Add,
+                        contentDescription = "Chọn biểu tượng",
+                        tint = LuminousOnSurfaceVariant,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
             }
             Column(
                 modifier = Modifier.weight(1f),
@@ -1590,15 +1595,14 @@ private fun WalletIconPicker(
                         Box(
                             modifier = Modifier
                                 .size(38.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(LuminousSurfaceContainerLowest),
+                                .clip(CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                imageVector = WalletIconMap.toVector(option.key, type),
+                            WalletIconMap.WalletIcon(
+                                key = option.key,
+                                walletType = type,
                                 contentDescription = option.label,
-                                tint = if (isSelected) WalletIconMap.tintFor(type) else LuminousOnSurfaceVariant,
-                                modifier = Modifier.size(22.dp)
+                                modifier = Modifier.fillMaxSize()
                             )
                         }
                     }

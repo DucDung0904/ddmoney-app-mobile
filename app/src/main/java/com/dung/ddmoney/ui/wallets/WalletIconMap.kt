@@ -1,12 +1,23 @@
 package com.dung.ddmoney.ui.wallets
 
+import androidx.annotation.DrawableRes
+import androidx.compose.foundation.Image
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.automirrored.outlined.TrendingUp
-import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.outlined.AccountBalance
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
+import androidx.compose.material.icons.outlined.CreditCard
+import androidx.compose.material.icons.outlined.Payments
+import androidx.compose.material.icons.outlined.PhoneAndroid
+import androidx.compose.material.icons.outlined.Savings
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
+import com.dung.ddmoney.R
 import com.dung.ddmoney.ui.dashboard.model.WalletType
 import com.dung.ddmoney.ui.theme.InvestAmber50
 import com.dung.ddmoney.ui.theme.InvestAmber600
@@ -16,7 +27,7 @@ import com.dung.ddmoney.ui.theme.SavingsTeal50
 import com.dung.ddmoney.ui.theme.SavingsTeal600
 
 object WalletIconMap {
-    const val DEFAULT_KEY = "wallet"
+    const val DEFAULT_KEY = ""
 
     data class Option(
         val key: String,
@@ -25,26 +36,24 @@ object WalletIconMap {
     )
 
     private val defaultOptions = listOf(
-        Option("cash", "Tiền mặt", WalletType.CASH),
-        Option("bank", "Ngân hàng", WalletType.BANK),
-        Option("ewallet", "Ví số", WalletType.EWALLET),
-        Option("credit_card", "Tín dụng", WalletType.CREDIT_CARD),
-        Option("savings", "Tiết kiệm", WalletType.SAVINGS),
-        Option("investment", "Đầu tư", WalletType.INVESTMENT),
-        Option("sparkle", "Lấp lánh"),
-        Option("star", "Ngôi sao"),
-        Option("gift", "Quà tặng"),
-        Option("party", "Ăn mừng"),
-        Option("game", "Giải trí"),
-        Option("coffee", "Cà phê"),
-        Option("shopping_fun", "Mua sắm"),
-        Option("rocket", "Bứt phá"),
-        Option("sunny", "Ngày mới"),
-        Option("heart", "Yêu thích"),
-        Option("trophy", "Thành tựu"),
-        Option("music", "Âm nhạc"),
-        Option("travel_fun", "Du lịch"),
-        Option("food_fun", "Ăn uống")
+        Option("money_icon", "Tiền mặt", WalletType.CASH),
+        Option("wallet_icon1", "Ví"),
+        Option("card", "Thẻ", WalletType.CREDIT_CARD),
+        Option("target", "Mục tiêu", WalletType.SAVINGS),
+        Option("portfolio", "Đầu tư", WalletType.INVESTMENT),
+        Option("calendar", "Lịch"),
+        Option("clock", "Thời gian"),
+        Option("note", "Ghi chú"),
+        Option("papper", "Tài liệu"),
+        Option("planet", "Hành tinh"),
+        Option("referal", "Liên kết"),
+        Option("chain", "Chuỗi"),
+        Option("bars", "Thanh toán"),
+        Option("bars_2", "Biểu đồ"),
+        Option("calcu", "Máy tính"),
+        Option("convert", "Chuyển đổi"),
+        Option("diagram", "Sơ đồ"),
+        Option("nate_2", "Danh sách")
     )
 
     fun optionsFor(type: WalletType): List<Option> {
@@ -53,100 +62,71 @@ object WalletIconMap {
         return preferred + rest
     }
 
-    fun toVector(key: String?, walletType: WalletType? = null): ImageVector {
-        return when (key?.trim()?.lowercase()) {
-            "wallet_main" -> Icons.Outlined.AccountBalanceWallet
-            "sparkle" -> Icons.Outlined.AutoAwesome
-            "star" -> Icons.Outlined.StarBorder
-            "gift" -> Icons.Outlined.CardGiftcard
-            "party" -> Icons.Outlined.Celebration
-            "game" -> Icons.Outlined.SportsEsports
-            "coffee" -> Icons.Outlined.LocalCafe
-            "shopping_fun" -> Icons.Outlined.ShoppingBag
-            "rocket" -> Icons.Outlined.RocketLaunch
-            "sunny" -> Icons.Outlined.WbSunny
-            "heart" -> Icons.Outlined.FavoriteBorder
-            "trophy" -> Icons.Outlined.EmojiEvents
-            "music" -> Icons.Outlined.MusicNote
-            "travel_fun" -> Icons.Outlined.Luggage
-            "food_fun" -> Icons.Outlined.Restaurant
-            "safe" -> Icons.Outlined.Lock
-            "savings", "saving" -> Icons.Outlined.Savings
-            "goal" -> Icons.Outlined.Flag
-            "coin" -> Icons.Outlined.MonetizationOn
-            "income" -> Icons.Outlined.Paid
-            "expense" -> Icons.AutoMirrored.Outlined.ReceiptLong
-            "bill" -> Icons.Outlined.RequestQuote
-            "portfolio" -> Icons.Outlined.DonutSmall
-            "investment", "invest" -> Icons.AutoMirrored.Outlined.TrendingUp
-            "business" -> Icons.Outlined.BusinessCenter
-            "travel_fund" -> Icons.Outlined.Luggage
-            "education_fund" -> Icons.AutoMirrored.Outlined.MenuBook
-            "home_fund" -> Icons.Outlined.Home
-            "store_fund" -> Icons.Outlined.Storefront
-            "mobile_pay" -> Icons.Outlined.Contactless
-            "cart" -> Icons.Outlined.ShoppingCart
-            "car" -> Icons.Outlined.DirectionsCar
-            "home" -> Icons.Outlined.Home
-            "flight" -> Icons.Outlined.Flight
-            "restaurant" -> Icons.Outlined.Restaurant
-            "celebration" -> Icons.Outlined.Celebration
-            "school" -> Icons.Outlined.School
-            "more" -> Icons.Outlined.MoreHoriz
-            "cash", "money", "payments" -> Icons.Outlined.Payments
-            "bank", "account_balance" -> Icons.Outlined.AccountBalance
-            "ewallet", "phone", "phone_android", "momo", "zalopay" -> Icons.Outlined.PhoneAndroid
-            "card" -> Icons.Outlined.Style
-            "credit", "credit_card" -> Icons.Outlined.CreditCard
-            null, "", DEFAULT_KEY -> defaultFor(walletType)
-            else -> defaultFor(walletType)
+    fun hasSelectedIcon(key: String): Boolean = key.trim().isNotEmpty()
+
+    @DrawableRes
+    fun drawableResFor(key: String?, walletType: WalletType? = null): Int =
+        when (key.normalizedIconKey()) {
+            "money_icon", "cash", "money", "payments", "coin", "income" -> R.drawable.money_icon
+            "card", "credit", "credit_card" -> R.drawable.card
+            "target", "savings", "saving", "goal" -> R.drawable.target
+            "portfolio", "investment", "invest" -> R.drawable.portfolio
+            "calendar", "travel_fund", "flight", "luggage" -> R.drawable.calendar
+            "clock" -> R.drawable.clock
+            "note", "expense", "bill", "restaurant", "food_fun", "coffee" -> R.drawable.note
+            "papper", "paper", "education_fund", "school" -> R.drawable.papper
+            "planet", "travel_fun", "rocket", "sunny" -> R.drawable.planet
+            "referal", "referral", "gift", "party", "celebration", "heart" -> R.drawable.referal
+            "chain", "business", "store_fund", "home", "home_fund" -> R.drawable.chain
+            "bars", "cart", "shopping_cart", "shopping_fun" -> R.drawable.bars
+            "bars_2", "trophy" -> R.drawable.bars_2
+            "calcu", "more" -> R.drawable.calcu
+            "convert", "transfer" -> R.drawable.convert
+            "diagram", "sparkle", "star" -> R.drawable.diagram
+            "nate_2", "list", "game", "music" -> R.drawable.nate_2
+            "wallet_icon1", "wallet", "wallet_main", "bank", "account_balance", "ewallet",
+            "phone", "phone_android", "momo", "zalopay" -> R.drawable.wallet_icon1
+            else -> fallbackDrawableFor(walletType)
         }
+
+    @Composable
+    fun WalletIcon(
+        key: String?,
+        walletType: WalletType?,
+        contentDescription: String?,
+        modifier: Modifier = Modifier
+    ) {
+        Image(
+            painter = painterResource(drawableResFor(key, walletType)),
+            contentDescription = contentDescription,
+            modifier = modifier
+        )
     }
 
-    fun toKey(icon: ImageVector): String {
-        return when (icon) {
-            Icons.Outlined.Savings -> "savings"
-            Icons.Outlined.AutoAwesome -> "sparkle"
-            Icons.Outlined.StarBorder -> "star"
-            Icons.Outlined.CardGiftcard -> "gift"
-            Icons.Outlined.SportsEsports -> "game"
-            Icons.Outlined.LocalCafe -> "coffee"
-            Icons.Outlined.ShoppingBag -> "shopping_fun"
-            Icons.Outlined.RocketLaunch -> "rocket"
-            Icons.Outlined.WbSunny -> "sunny"
-            Icons.Outlined.FavoriteBorder -> "heart"
-            Icons.Outlined.EmojiEvents -> "trophy"
-            Icons.Outlined.MusicNote -> "music"
-            Icons.Outlined.Lock -> "safe"
-            Icons.Outlined.Flag -> "goal"
-            Icons.Outlined.ShoppingCart -> "cart"
-            Icons.Outlined.DirectionsCar -> "car"
-            Icons.Outlined.Home -> "home"
-            Icons.Outlined.Flight -> "flight"
-            Icons.Outlined.Restaurant -> "restaurant"
-            Icons.Outlined.Celebration -> "celebration"
-            Icons.Outlined.School -> "school"
-            Icons.Outlined.MoreHoriz -> "more"
-            Icons.Outlined.MonetizationOn -> "coin"
-            Icons.Outlined.Paid -> "income"
-            Icons.AutoMirrored.Outlined.ReceiptLong -> "expense"
-            Icons.Outlined.RequestQuote -> "bill"
-            Icons.Outlined.DonutSmall -> "portfolio"
-            Icons.Outlined.BusinessCenter -> "business"
-            Icons.Outlined.Luggage -> "travel_fund"
-            Icons.AutoMirrored.Outlined.MenuBook -> "education_fund"
-            Icons.Outlined.Storefront -> "store_fund"
-            Icons.Outlined.Contactless -> "mobile_pay"
-            Icons.Outlined.Payments -> "cash"
-            Icons.Outlined.AccountBalance -> "bank"
-            Icons.Outlined.PhoneAndroid -> "ewallet"
-            Icons.Outlined.Style -> "card"
-            Icons.Outlined.CreditCard -> "credit_card"
-            Icons.AutoMirrored.Outlined.TrendingUp -> "investment"
-            Icons.Outlined.AccountBalanceWallet -> "wallet"
-            else -> DEFAULT_KEY
+    fun toVector(key: String?, walletType: WalletType? = null): ImageVector =
+        when (key?.trim()?.lowercase()) {
+            "investment", "invest", "portfolio" -> Icons.AutoMirrored.Outlined.TrendingUp
+            "savings", "saving", "target" -> Icons.Outlined.Savings
+            "card", "credit", "credit_card" -> Icons.Outlined.CreditCard
+            "bank", "account_balance" -> Icons.Outlined.AccountBalance
+            "ewallet", "phone", "phone_android", "momo", "zalopay" -> Icons.Outlined.PhoneAndroid
+            "cash", "money", "money_icon", "payments" -> Icons.Outlined.Payments
+            "expense", "bill", "note" -> Icons.AutoMirrored.Outlined.ReceiptLong
+            "education_fund", "papper" -> Icons.AutoMirrored.Outlined.MenuBook
+            else -> defaultFor(walletType)
         }
-    }
+
+    fun toKey(icon: ImageVector): String =
+        when (icon) {
+            Icons.Outlined.Payments -> "money_icon"
+            Icons.Outlined.AccountBalance -> "wallet_icon1"
+            Icons.Outlined.PhoneAndroid -> "wallet_icon1"
+            Icons.Outlined.CreditCard -> "card"
+            Icons.Outlined.Savings -> "target"
+            Icons.AutoMirrored.Outlined.TrendingUp -> "portfolio"
+            Icons.Outlined.AccountBalanceWallet -> "wallet_icon1"
+            else -> "wallet_icon1"
+        }
 
     fun tintFor(type: WalletType): Color = when (type) {
         WalletType.CASH -> SavingsTeal600
@@ -167,21 +147,23 @@ object WalletIconMap {
     }
 
     fun defaultKeyFor(type: WalletType): String = when (type) {
-        WalletType.CASH -> "cash"
-        WalletType.BANK -> "bank"
-        WalletType.EWALLET -> "ewallet"
-        WalletType.CREDIT_CARD -> "credit_card"
-        WalletType.SAVINGS -> "savings"
-        WalletType.INVESTMENT -> "investment"
+        WalletType.CASH -> "money_icon"
+        WalletType.BANK -> "wallet_icon1"
+        WalletType.EWALLET -> "wallet_icon1"
+        WalletType.CREDIT_CARD -> "card"
+        WalletType.SAVINGS -> "target"
+        WalletType.INVESTMENT -> "portfolio"
     }
 
-    fun colorHexFor(type: WalletType): String = when (type) {
-        WalletType.CASH -> "#1D9E75"
-        WalletType.BANK -> "#185FA5"
-        WalletType.EWALLET -> "#D82D8B"
-        WalletType.CREDIT_CARD -> "#EF9F27"
-        WalletType.SAVINGS -> "#1D9E75"
-        WalletType.INVESTMENT -> "#EF9F27"
+    @DrawableRes
+    private fun fallbackDrawableFor(type: WalletType?): Int = when (type) {
+        WalletType.CASH -> R.drawable.money_icon
+        WalletType.CREDIT_CARD -> R.drawable.card
+        WalletType.SAVINGS -> R.drawable.target
+        WalletType.INVESTMENT -> R.drawable.portfolio
+        WalletType.BANK,
+        WalletType.EWALLET,
+        null -> R.drawable.wallet_icon1
     }
 
     private fun defaultFor(type: WalletType?): ImageVector = when (type) {
@@ -194,3 +176,5 @@ object WalletIconMap {
         null -> Icons.Outlined.AccountBalanceWallet
     }
 }
+
+private fun String?.normalizedIconKey(): String = this?.trim()?.lowercase().orEmpty()

@@ -427,7 +427,7 @@ private fun WalletAvatar(wallet: Wallet?) {
             Modifier
                 .size(34.dp)
                 .clip(CircleShape)
-                .background(wallet?.let { WalletIconMap.backgroundFor(it.type) } ?: OceanBlue50),
+                .background(if (wallet == null) OceanBlue50 else Color.Transparent),
         contentAlignment = Alignment.Center
     ) {
         if (wallet == null) {
@@ -438,11 +438,11 @@ private fun WalletAvatar(wallet: Wallet?) {
                 modifier = Modifier.size(20.dp)
             )
         } else {
-            Icon(
-                imageVector = WalletIconMap.toVector(wallet.icon, wallet.type),
+            WalletIconMap.WalletIcon(
+                key = wallet.icon,
+                walletType = wallet.type,
                 contentDescription = null,
-                tint = WalletIconMap.tintFor(wallet.type),
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(34.dp)
             )
         }
     }

@@ -187,6 +187,7 @@ class WalletRepository(
         val walletType = WalletType.fromString(type)
         val base = copy(
             name = name.trim(),
+            icon = icon.trim(),
             currency = currency.ifBlank { "VND" },
             isDefault = isDefault || isDefaultWallet,
             isIncludedInTotal = if (isDefault || isDefaultWallet) true else isIncludedInTotal
@@ -245,6 +246,7 @@ class WalletRepository(
 
     private fun WalletRequest.validateWalletBusinessRules() {
         require(name.isNotBlank()) { "Tên ví không được rỗng" }
+        require(icon.isNotBlank()) { "Vui lòng chọn biểu tượng ví" }
 
         val walletType = WalletType.fromString(type)
         when (walletType) {

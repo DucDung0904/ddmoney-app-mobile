@@ -97,9 +97,7 @@ data class Wallet(
     val type: WalletType,
     val bank: String = "",
     val cardNumber: String = "",
-    val color: Color,
-    val colorHex: String = "#4659A6",
-    val icon: String = "wallet",
+    val icon: String = "",
     val currency: String = "VND",
     val isDefault: Boolean = false,
     val isArchived: Boolean = false,
@@ -208,7 +206,7 @@ object SampleData {
     val defaultDebtCategories = defaultCategories.filter { it.type == CategoryType.DEBT }
 
     val defaultWallets = listOf(
-        Wallet(WalletIds.CASH, "Tiền mặt", 2_500_000.0, WalletType.CASH, icon = "wallet", color = LuminousSecondary, isDefault = true),
+        Wallet(WalletIds.CASH, "Tiền mặt", 2_500_000.0, WalletType.CASH, icon = "money_icon", isDefault = true),
         Wallet(
             WalletIds.VIETCOMBANK,
             "Vietcombank",
@@ -216,10 +214,9 @@ object SampleData {
             WalletType.BANK,
             "Vietcombank",
             "**** 4829",
-            icon = "savings",
-            color = SavingsTeal600
+            icon = "target"
         ),
-        Wallet(WalletIds.MOMO, "Ví MoMo", 280_000.0, WalletType.EWALLET, icon = "wallet", color = Color(0xFFD82D8B)),
+        Wallet(WalletIds.MOMO, "Ví MoMo", 280_000.0, WalletType.EWALLET, icon = "wallet_icon1"),
     )
 
     val sampleTransactions = listOf(

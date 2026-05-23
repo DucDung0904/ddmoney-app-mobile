@@ -20,6 +20,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.text.font.FontWeight
@@ -32,7 +33,6 @@ import com.dung.ddmoney.ui.theme.*
 import com.dung.ddmoney.ui.components.formatMoneyDisplay
 
 private val WALLET_ICON_BOX_SIZE = 38.dp
-private val WALLET_ICON_SIZE = 23.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -433,18 +433,16 @@ private fun WalletDetailItem(
             Box(
                 modifier = Modifier
                     .size(WALLET_ICON_BOX_SIZE)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(
-                        if (isArchived) LuminousSurfaceContainerHigh
-                        else WalletIconMap.backgroundFor(wallet.type)
-                    ),
+                    .clip(CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = WalletIconMap.toVector(wallet.icon, wallet.type),
+                WalletIconMap.WalletIcon(
+                    key = wallet.icon,
+                    walletType = wallet.type,
                     contentDescription = null,
-                    modifier = Modifier.size(WALLET_ICON_SIZE),
-                    tint = if (isArchived) LuminousOnSurfaceVariant else WalletIconMap.tintFor(wallet.type)
+                    modifier = Modifier
+                        .size(WALLET_ICON_BOX_SIZE)
+                        .alpha(if (isArchived) 0.46f else 1f)
                 )
             }
 

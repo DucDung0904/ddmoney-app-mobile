@@ -14,8 +14,7 @@ data class WalletEntity(
     val type: String,                   // WalletType.name
     val bankName: String? = null,
     val cardNumber: String? = null,
-    val colorHex: String = "#4659A6",
-    val icon: String = "wallet",
+    val icon: String = "",
     val currency: String = "VND",
     val isDefault: Boolean = false,
     val isActive: Boolean = true,       // backward compat

@@ -113,7 +113,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             currency: String,
             walletName: String,
             walletBalance: Double,
-            walletIcon: String = "wallet",
+            walletIcon: String = "",
             walletType: WalletType = WalletType.CASH
     ) {
         tokenManager.setCurrency(currency)
@@ -128,10 +128,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                             balance = walletBalance,
                             type = walletType.name,
                             bankName = null,
-                            colorHex =
-                                    com.dung.ddmoney.ui.wallets.WalletIconMap.colorHexFor(
-                                            walletType
-                                    ),
                             icon = walletIcon,
                             currency = currency,
                             isDefault = true

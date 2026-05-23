@@ -17,7 +17,7 @@ import com.dung.ddmoney.local.entity.*
         BudgetEntity::class,
         BudgetCategoryEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -38,6 +38,7 @@ abstract class AppDatabase : RoomDatabase() {
                     "ddmoney_db"
                 )
                 .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                .addMigrations(MIGRATION_6_7)
                 .build()
                 INSTANCE = instance
                 instance
@@ -104,5 +105,82 @@ abstract class AppDatabase : RoomDatabase() {
                     db.execSQL("ALTER TABLE wallets ADD COLUMN targetDate TEXT")
                 }
             }
+
+        private val MIGRATION_6_7 =
+            object : Migration(6, 7) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    if (!db.hasColumn("wallets", "updatedAt")) {
+                        db.execSQL("ALTER TABLE wallets ADD COLUMN updatedAt INTEGER NOT NULL DEFAULT 0")
+                    }
+                    db.execSQL(
+                        """
+                        CREATE TABLE IF NOT EXISTS `wallets_new` (
+                            `id` TEXT NOT NULL,
+                            `serverId` INTEGER,
+                            `userId` INTEGER,
+                            `name` TEXT NOT NULL,
+                            `balance` REAL NOT NULL,
+                            `type` TEXT NOT NULL,
+                            `bankName` TEXT,
+                            `cardNumber` TEXT,
+                            `icon` TEXT NOT NULL,
+                            `currency` TEXT NOT NULL,
+                            `isDefault` INTEGER NOT NULL,
+                            `isActive` INTEGER NOT NULL,
+                            `isArchived` INTEGER NOT NULL,
+                            `isIncludedInTotal` INTEGER NOT NULL,
+                            `sortOrder` INTEGER NOT NULL,
+                            `creditLimit` REAL,
+                            `currentDebt` REAL,
+                            `billingDay` INTEGER,
+                            `paymentDueDay` INTEGER,
+                            `targetAmount` REAL,
+                            `targetDate` TEXT,
+                            `syncStatus` TEXT NOT NULL,
+                            `createdAt` INTEGER NOT NULL,
+                            `updatedAt` INTEGER NOT NULL,
+                            PRIMARY KEY(`id`)
+                        )
+                        """.trimIndent()
+                    )
+                    db.execSQL(
+                        """
+                        INSERT INTO `wallets_new` (
+                            `id`, `serverId`, `userId`, `name`, `balance`, `type`,
+                            `bankName`, `cardNumber`, `icon`, `currency`, `isDefault`,
+                            `isActive`, `isArchived`, `isIncludedInTotal`, `sortOrder`,
+                            `creditLimit`, `currentDebt`, `billingDay`, `paymentDueDay`,
+                            `targetAmount`, `targetDate`, `syncStatus`, `createdAt`, `updatedAt`
+                        )
+                        SELECT
+                            `id`, `serverId`, `userId`, `name`, `balance`, `type`,
+                            `bankName`, `cardNumber`,
+                            CASE
+                                WHEN `icon` IS NULL OR TRIM(`icon`) = '' OR `icon` = 'wallet'
+                                    THEN 'wallet_icon1'
+                                ELSE `icon`
+                            END,
+                            `currency`, `isDefault`, `isActive`, `isArchived`,
+                            `isIncludedInTotal`, `sortOrder`, `creditLimit`, `currentDebt`,
+                            `billingDay`, `paymentDueDay`, `targetAmount`, `targetDate`,
+                            `syncStatus`, `createdAt`, `updatedAt`
+                        FROM `wallets`
+                        """.trimIndent()
+                    )
+                    db.execSQL("DROP TABLE `wallets`")
+                    db.execSQL("ALTER TABLE `wallets_new` RENAME TO `wallets`")
+                }
+            }
+
+        private fun SupportSQLiteDatabase.hasColumn(tableName: String, columnName: String): Boolean {
+            val cursor = query("PRAGMA table_info(`$tableName`)")
+            cursor.use {
+                val nameIndex = it.getColumnIndex("name")
+                while (it.moveToNext()) {
+                    if (it.getString(nameIndex) == columnName) return true
+                }
+            }
+            return false
+        }
     }
 }

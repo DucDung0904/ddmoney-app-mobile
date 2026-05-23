@@ -26,7 +26,6 @@ import com.dung.ddmoney.ui.components.formatMoneyDisplay
 
 // ─── Dimensions ───────────────────────────────────────────────────────────────
 private val WALLET_PANEL_SHAPE = RoundedCornerShape(24.dp)
-private val WALLET_ICON_SHAPE = RoundedCornerShape(14.dp)
 private val WALLET_ICON_BOX_SIZE = 38.dp
 private val WALLET_ICON_SIZE = 23.dp
 private val WALLET_ROW_HEIGHT = 56.dp
@@ -181,15 +180,14 @@ private fun WalletSummaryRow(
             Box(
                 modifier = Modifier
                     .size(WALLET_ICON_BOX_SIZE)
-                    .clip(WALLET_ICON_SHAPE)
-                    .background(WalletIconMap.backgroundFor(wallet.type)),
+                    .clip(CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = WalletIconMap.toVector(wallet.icon, wallet.type),
+                WalletIconMap.WalletIcon(
+                    key = wallet.icon,
+                    walletType = wallet.type,
                     contentDescription = null,
-                    tint = WalletIconMap.tintFor(wallet.type),
-                    modifier = Modifier.size(WALLET_ICON_SIZE)
+                    modifier = Modifier.fillMaxSize()
                 )
             }
 
@@ -260,7 +258,7 @@ private fun EmptyWalletRow(onClick: () -> Unit) {
         Box(
             modifier = Modifier
                 .size(WALLET_ICON_BOX_SIZE)
-                .clip(WALLET_ICON_SHAPE)
+                .clip(CircleShape)
                 ,
             contentAlignment = Alignment.Center
         ) {

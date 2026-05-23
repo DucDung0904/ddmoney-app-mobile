@@ -15,8 +15,6 @@ data class WalletResponse(
     val bankName: String? = null,
     @SerializedName(value = "cardNumber", alternate = ["card_number"])
     val cardNumber: String? = null,
-    @SerializedName(value = "colorHex", alternate = ["color_hex"])
-    val colorHex: String? = null,
     val icon: String? = null,
     val currency: String? = null,
     @SerializedName(value = "isActive", alternate = ["is_active"])
@@ -53,9 +51,7 @@ data class WalletRequest(
     val bankName: String? = null,
     @SerializedName(value = "cardNumber", alternate = ["card_number"])
     val cardNumber: String? = null,
-    @SerializedName(value = "colorHex", alternate = ["color_hex"])
-    val colorHex: String = "#4659A6",
-    val icon: String = "wallet",
+    val icon: String = "",
     val currency: String = "VND",
     @SerializedName(value = "isDefault", alternate = ["is_default"])
     val isDefault: Boolean = false,
