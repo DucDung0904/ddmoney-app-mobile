@@ -25,6 +25,8 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -34,7 +36,7 @@ import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.ArrowBackIosNew
 import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.Category
-import androidx.compose.material.icons.outlined.Language
+import androidx.compose.material.icons.outlined.UnfoldMore
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -49,6 +51,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -65,11 +68,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dung.ddmoney.parseColor
 import com.dung.ddmoney.repository.BudgetDisplayModel
+import com.dung.ddmoney.repository.BudgetPeriod
+import com.dung.ddmoney.repository.BudgetPeriodType
 import com.dung.ddmoney.ui.components.CategoryIcon
 import com.dung.ddmoney.ui.components.formatMoneyDisplay
 import com.dung.ddmoney.ui.dashboard.model.Category
 import com.dung.ddmoney.ui.dashboard.model.Transaction
 import com.dung.ddmoney.ui.dashboard.model.TransactionType
+import com.dung.ddmoney.ui.dashboard.model.Wallet
 import com.dung.ddmoney.ui.theme.ExpenseRed600
 import com.dung.ddmoney.ui.theme.InvestAmber600
 import com.dung.ddmoney.ui.theme.LuminousBackground
@@ -86,6 +92,8 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
+import java.util.Locale
+import kotlinx.coroutines.launch
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.roundToInt
@@ -101,9 +109,22 @@ fun BudgetScreen(viewModel: com.dung.ddmoney.AppViewModel = androidx.lifecycle.v
     var showAddBudget by remember { mutableStateOf(false) }
     var editingBudget by remember { mutableStateOf<BudgetDisplayModel?>(null) }
     var detailTarget by remember { mutableStateOf<BudgetDetailTarget?>(null) }
+    var showWalletPicker by remember { mutableStateOf(false) }
+    var selectedWalletId by remember { mutableStateOf<Long?>(null) }
     val state by viewModel.state.collectAsState()
     val budgets = state.budgets
     val snackbarHostState = remember { SnackbarHostState() }
+    val pagerState =
+        rememberPagerState(
+            initialPage = budgetPeriodTypes.indexOf(BudgetPeriodType.MONTH),
+            pageCount = { budgetPeriodTypes.size }
+        )
+    val coroutineScope = rememberCoroutineScope()
+    val selectedPeriodType = budgetPeriodTypes[pagerState.currentPage]
+    val selectedWallet =
+        remember(state.wallets, selectedWalletId) {
+            state.wallets.firstOrNull { it.id.toLongOrNull() == selectedWalletId }
+        }
 
     LaunchedEffect(state.error) {
         state.error?.let {
@@ -112,19 +133,22 @@ fun BudgetScreen(viewModel: com.dung.ddmoney.AppViewModel = androidx.lifecycle.v
         }
     }
 
-    val totalLimit = budgets.sumOf { it.amount }
-    val totalSpent = budgets.sumOf { it.spentAmount }
-    val overallProgress = if (totalLimit > 0) (totalSpent / totalLimit).toFloat() else 0f
     val today = remember { LocalDate.now() }
-    val daysRemaining =
-        remember(today) {
-            (YearMonth.from(today).lengthOfMonth() - today.dayOfMonth).coerceAtLeast(0)
+    val activeBudgets =
+        remember(budgets, selectedPeriodType, selectedWalletId, today) {
+            activeBudgetsFor(
+                budgets = budgets,
+                periodType = selectedPeriodType,
+                walletId = selectedWalletId,
+                today = today
+            )
         }
-    val monthProgress =
-        remember(today) {
-            (today.dayOfMonth.toFloat() / YearMonth.from(today).lengthOfMonth().toFloat())
-                .coerceIn(0f, 1f)
-        }
+    val selectedPeriod = remember(selectedPeriodType, today) {
+        BudgetPeriod.current(selectedPeriodType, today)
+    }
+    val periodProgress = remember(selectedPeriod, today) {
+        calculatePeriodProgress(selectedPeriod, today)
+    }
 
     Scaffold(
         snackbarHost = {
@@ -139,10 +163,11 @@ fun BudgetScreen(viewModel: com.dung.ddmoney.AppViewModel = androidx.lifecycle.v
         if (currentDetailTarget != null) {
             BudgetDetailScreen(
                 target = currentDetailTarget,
-                budgets = budgets,
+                budgets = activeBudgets,
                 transactions = state.transactions,
                 categories = state.categories,
-                monthProgress = monthProgress,
+                wallets = state.wallets,
+                periodProgress = periodProgress,
                 onBack = { detailTarget = null },
                 onEdit = { budget ->
                     editingBudget = budget
@@ -154,56 +179,47 @@ fun BudgetScreen(viewModel: com.dung.ddmoney.AppViewModel = androidx.lifecycle.v
                 }
             )
         } else {
-            Box(
+            Column(
                 modifier =
                     Modifier
                         .fillMaxSize()
                         .padding(paddingValues)
             ) {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 132.dp)
-                ) {
-                    item { BudgetTopBar() }
-
-                    item { MonthTabHeader() }
-
-                    if (budgets.isEmpty()) {
-                        item {
-                            EmptyBudgetState(
-                                modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .height(470.dp),
-                                onAddClick = {
-                                    editingBudget = null
-                                    showAddBudget = true
-                                }
-                            )
-                        }
-                    } else {
-                        item {
-                            OverallBudgetCard(
-                                limit = totalLimit,
-                                spent = totalSpent,
-                                progress = overallProgress,
-                                daysRemaining = daysRemaining,
-                                onClick = { detailTarget = BudgetDetailTarget.Overall },
-                                onAddClick = {
-                                    editingBudget = null
-                                    showAddBudget = true
-                                }
-                            )
-                        }
-
-                        items(budgets, key = { it.id }) { budget ->
-                            BudgetTimelineCard(
-                                budget = budget,
-                                monthProgress = monthProgress,
-                                onClick = { detailTarget = BudgetDetailTarget.Single(budget.id) }
-                            )
+                BudgetTopBar(
+                    selectedWallet = selectedWallet,
+                    onWalletClick = { showWalletPicker = true }
+                )
+                BudgetPeriodTabRow(
+                    selectedPosition =
+                        pagerState.currentPage + pagerState.currentPageOffsetFraction,
+                    useCurrentLabels = true,
+                    onSelect = { type ->
+                        coroutineScope.launch {
+                            pagerState.animateScrollToPage(budgetPeriodTypes.indexOf(type))
                         }
                     }
+                )
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.weight(1f),
+                    beyondViewportPageCount = 1
+                ) { page ->
+                    val pageType = budgetPeriodTypes[page]
+                    val pagePeriod = BudgetPeriod.current(pageType, today)
+                    val pageBudgets =
+                        remember(budgets, pageType, selectedWalletId, today) {
+                            activeBudgetsFor(budgets, pageType, selectedWalletId, today)
+                        }
+                    BudgetOverviewPage(
+                        budgets = pageBudgets,
+                        period = pagePeriod,
+                        onAddClick = {
+                            editingBudget = null
+                            showAddBudget = true
+                        },
+                        onOverallClick = { detailTarget = BudgetDetailTarget.Overall },
+                        onBudgetClick = { detailTarget = BudgetDetailTarget.Single(it.id) }
+                    )
                 }
             }
         }
@@ -212,18 +228,21 @@ fun BudgetScreen(viewModel: com.dung.ddmoney.AppViewModel = androidx.lifecycle.v
             AddBudgetScreen(
                 categories = state.categories,
                 wallets = state.wallets,
+                transactions = state.transactions,
+                existingBudgets = budgets,
                 initialBudget = editingBudget,
-                onSave = { name, amount, categoryIds, month, year ->
+                initialPeriodType = selectedPeriodType,
+                onSave = { name, amount, categoryIds, period, walletId ->
                     val budgetBeingEdited = editingBudget
                     if (budgetBeingEdited == null) {
-                        viewModel.createBudget(name, amount, month, year, categoryIds)
+                        viewModel.createBudget(name, amount, period, walletId, categoryIds)
                     } else {
                         viewModel.updateBudget(
                             budgetBeingEdited.id,
                             name,
                             amount,
-                            month,
-                            year,
+                            period,
+                            walletId,
                             categoryIds
                         )
                     }
@@ -236,22 +255,36 @@ fun BudgetScreen(viewModel: com.dung.ddmoney.AppViewModel = androidx.lifecycle.v
                 }
             )
         }
+
+        BudgetWalletPickerSheet(
+            visible = showWalletPicker,
+            wallets = state.wallets.filter { it.id.toLongOrNull() != null },
+            selectedWalletId = selectedWalletId,
+            onSelect = {
+                selectedWalletId = it
+                showWalletPicker = false
+                detailTarget = null
+            },
+            onDismiss = { showWalletPicker = false }
+        )
     }
 }
 
 @Composable
-private fun BudgetTopBar() {
+private fun BudgetTopBar(
+    selectedWallet: Wallet?,
+    onWalletClick: () -> Unit
+) {
     Row(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .statusBarsPadding()
                 .padding(horizontal = 20.dp)
-                .padding(top = 14.dp, bottom = 12.dp),
+                .padding(top = 6.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = "Ngân sách Đang áp dụng",
+            text = "Ngân sách đang áp dụng",
             modifier = Modifier.weight(1f),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -259,34 +292,87 @@ private fun BudgetTopBar() {
             fontWeight = FontWeight.ExtraBold,
             color = LuminousOnBackground
         )
+        Surface(
+            onClick = onWalletClick,
+            shape = RoundedCornerShape(24.dp),
+            color = LuminousSurfaceContainerLowest,
+            tonalElevation = 1.dp,
+            shadowElevation = 2.dp
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 9.dp, vertical = 7.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                BudgetWalletIcon(wallet = selectedWallet, size = 34.dp)
+                if (selectedWallet != null) {
+                    Spacer(modifier = Modifier.width(7.dp))
+                    Text(
+                        text = selectedWallet.name,
+                        color = LuminousOnBackground,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.width(72.dp)
+                    )
+                }
+                Icon(
+                    imageVector = Icons.Outlined.UnfoldMore,
+                    contentDescription = "Chọn ví áp dụng",
+                    tint = NeutralGray600,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        }
     }
 }
 
 @Composable
-private fun MonthTabHeader() {
-    Column(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .background(LuminousSurfaceContainerLowest)
-                .padding(top = 16.dp)
+private fun BudgetOverviewPage(
+    budgets: List<BudgetDisplayModel>,
+    period: BudgetPeriod,
+    onAddClick: () -> Unit,
+    onOverallClick: () -> Unit,
+    onBudgetClick: (BudgetDisplayModel) -> Unit
+) {
+    val totalLimit = budgets.sumOf { it.amount }
+    val totalSpent = budgets.sumOf { it.spentAmount }
+    val overallProgress = if (totalLimit > 0) (totalSpent / totalLimit).toFloat() else 0f
+    val today = LocalDate.now()
+    val periodProgress = calculatePeriodProgress(period, today)
+    val remaining = periodRemainingLabel(period, today)
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(top = 8.dp, bottom = 132.dp)
     ) {
-        Text(
-            text = "Tháng này",
-            modifier = Modifier.padding(horizontal = 20.dp),
-            fontSize = 16.sp,
-            fontWeight = FontWeight.ExtraBold,
-            color = LuminousOnBackground
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        Box(
-            modifier =
-                Modifier
-                    .padding(start = 18.dp)
-                    .width(92.dp)
-                    .height(2.dp)
-                    .background(LuminousOnBackground, RoundedCornerShape(3.dp))
-        )
+        if (budgets.isEmpty()) {
+            item {
+                EmptyBudgetState(
+                    modifier = Modifier.fillMaxWidth().height(470.dp),
+                    onAddClick = onAddClick
+                )
+            }
+        } else {
+            item {
+                OverallBudgetCard(
+                    limit = totalLimit,
+                    spent = totalSpent,
+                    progress = overallProgress,
+                    remainingValue = remaining.first,
+                    remainingLabel = remaining.second,
+                    onClick = onOverallClick,
+                    onAddClick = onAddClick
+                )
+            }
+            items(budgets, key = { it.id }) { budget ->
+                BudgetTimelineCard(
+                    budget = budget,
+                    periodProgress = periodProgress,
+                    onClick = { onBudgetClick(budget) }
+                )
+            }
+        }
     }
 }
 
@@ -361,11 +447,13 @@ private fun OverallBudgetCard(
     limit: Double,
     spent: Double,
     progress: Float,
-    daysRemaining: Int,
+    remainingValue: String,
+    remainingLabel: String,
     onClick: () -> Unit,
     onAddClick: () -> Unit
 ) {
-    val remaining = (limit - spent).coerceAtLeast(0.0)
+    val isOverBudget = spent > limit
+    val balanceAmount = if (isOverBudget) spent - limit else limit - spent
 
     Surface(
         onClick = onClick,
@@ -383,7 +471,8 @@ private fun OverallBudgetCard(
         ) {
             BudgetGauge(
                 progress = progress,
-                amount = formatBudgetMoney(remaining)
+                amount = formatBudgetMoney(balanceAmount),
+                isOverBudget = isOverBudget
             )
 
             Row(
@@ -399,12 +488,13 @@ private fun OverallBudgetCard(
                 BudgetMetric(
                     value = formatCompactMoney(spent),
                     label = "Tổng đã chi",
+                    valueColor = if (isOverBudget) ExpenseRed600 else LuminousOnBackground,
                     modifier = Modifier.weight(1f)
                 )
                 VerticalMetricDivider()
                 BudgetMetric(
-                    value = "$daysRemaining ngày",
-                    label = "Đến cuối tháng",
+                    value = remainingValue,
+                    label = remainingLabel,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -432,7 +522,12 @@ private fun OverallBudgetCard(
 }
 
 @Composable
-private fun BudgetGauge(progress: Float, amount: String) {
+private fun BudgetGauge(
+    progress: Float,
+    amount: String,
+    isOverBudget: Boolean
+) {
+    val accentColor = if (isOverBudget) ExpenseRed600 else OceanBlue600
     val animatedProgress by
         animateFloatAsState(
             targetValue = progress.coerceIn(0f, 1f),
@@ -465,7 +560,7 @@ private fun BudgetGauge(progress: Float, amount: String) {
             )
 
             drawArc(
-                color = OceanBlue600,
+                color = accentColor,
                 startAngle = 180f,
                 sweepAngle = animatedProgress * 180f,
                 useCenter = false,
@@ -488,7 +583,7 @@ private fun BudgetGauge(progress: Float, amount: String) {
                 center = knobCenter
             )
             drawCircle(
-                color = OceanBlue600,
+                color = accentColor,
                 radius = 5.dp.toPx(),
                 center = knobCenter
             )
@@ -499,15 +594,15 @@ private fun BudgetGauge(progress: Float, amount: String) {
             modifier = Modifier.padding(top = 22.dp)
         ) {
             Text(
-                text = "Số tiền bạn có thể chi",
-                color = NeutralGray600,
+                text = if (isOverBudget) "Đã vượt hạn mức" else "Số tiền bạn có thể chi",
+                color = if (isOverBudget) ExpenseRed600 else NeutralGray600,
                 fontSize = 14.sp,
-                fontWeight = FontWeight.Medium
+                fontWeight = if (isOverBudget) FontWeight.Bold else FontWeight.Medium
             )
             Spacer(modifier = Modifier.height(10.dp))
             Text(
                 text = amount,
-                color = OceanBlue600,
+                color = accentColor,
                 fontSize = 32.sp,
                 fontWeight = FontWeight.ExtraBold,
                 maxLines = 1,
@@ -518,14 +613,19 @@ private fun BudgetGauge(progress: Float, amount: String) {
 }
 
 @Composable
-private fun BudgetMetric(value: String, label: String, modifier: Modifier = Modifier) {
+private fun BudgetMetric(
+    value: String,
+    label: String,
+    modifier: Modifier = Modifier,
+    valueColor: Color = LuminousOnBackground
+) {
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
             text = value,
-            color = LuminousOnBackground,
+            color = valueColor,
             fontSize = 17.sp,
             fontWeight = FontWeight.SemiBold,
             maxLines = 1,
@@ -557,7 +657,7 @@ private fun VerticalMetricDivider() {
 @Composable
 private fun BudgetTimelineCard(
     budget: BudgetDisplayModel,
-    monthProgress: Float,
+    periodProgress: Float,
     onClick: () -> Unit
 ) {
     val isOverBudget = budget.spentAmount > budget.amount
@@ -651,7 +751,7 @@ private fun BudgetTimelineCard(
 
             BudgetProgressRail(
                 progress = animatedProgress,
-                markerProgress = monthProgress,
+                markerProgress = periodProgress,
                 color = progressColor
             )
         }
@@ -726,7 +826,8 @@ private fun BudgetDetailScreen(
     budgets: List<BudgetDisplayModel>,
     transactions: List<Transaction>,
     categories: List<Category>,
-    monthProgress: Float,
+    wallets: List<Wallet>,
+    periodProgress: Float,
     onBack: () -> Unit,
     onEdit: (BudgetDisplayModel) -> Unit,
     onDelete: (BudgetDisplayModel) -> Unit
@@ -743,15 +844,13 @@ private fun BudgetDetailScreen(
         return
     }
 
-    val period =
-        primaryBudget?.let { YearMonth.of(it.year, it.month) } ?: YearMonth.from(LocalDate.now())
-    val startDate = period.atDay(1)
-    val endDate = period.atEndOfMonth()
+    val startDate = primaryBudget?.startDate ?: LocalDate.now()
+    val endDate = primaryBudget?.endDate ?: LocalDate.now()
     val today = LocalDate.now()
     val clampedToday = today.coerceIn(startDate, endDate)
-    val totalDays = period.lengthOfMonth().toDouble()
+    val totalDays = (ChronoUnit.DAYS.between(startDate, endDate) + 1).toDouble()
     val elapsedDays = (ChronoUnit.DAYS.between(startDate, clampedToday) + 1).coerceAtLeast(1)
-    val remainingDays = (ChronoUnit.DAYS.between(clampedToday, endDate) + 1).coerceAtLeast(0)
+    val remainingDays = ChronoUnit.DAYS.between(clampedToday, endDate).coerceAtLeast(0)
     val totalLimit = selectedBudgets.sumOf { it.amount }
     val totalSpent = selectedBudgets.sumOf { it.spentAmount }
     val remaining = (totalLimit - totalSpent).coerceAtLeast(0.0)
@@ -761,15 +860,15 @@ private fun BudgetDetailScreen(
             BudgetDetailTarget.Overall -> "Tổng ngân sách"
             is BudgetDetailTarget.Single -> primaryBudget?.name.orEmpty()
         }
-    val effectiveCategoryIds = remember(selectedBudgets, categories) {
-        effectiveBudgetCategoryIds(selectedBudgets, categories)
-    }
     val periodTransactions =
-        remember(transactions, effectiveCategoryIds, period) {
+        remember(transactions, selectedBudgets, categories, startDate, endDate) {
             transactions.filter { transaction ->
                 transaction.type == TransactionType.EXPENSE &&
-                    YearMonth.from(transaction.date) == period &&
-                    (effectiveCategoryIds.isEmpty() || transaction.categoryId in effectiveCategoryIds)
+                    !transaction.date.isBefore(startDate) &&
+                    !transaction.date.isAfter(endDate) &&
+                    selectedBudgets.any { budget ->
+                        transactionMatchesBudget(transaction, budget, categories)
+                    }
             }
         }
     val categoryRows =
@@ -782,6 +881,16 @@ private fun BudgetDetailScreen(
     val singleBudget = (target as? BudgetDetailTarget.Single)?.let { targetId ->
         budgets.firstOrNull { it.id == targetId.budgetId }
     }
+    val walletLabel =
+        remember(selectedBudgets, wallets) {
+            val walletIds = selectedBudgets.map { it.walletId }.distinct()
+            if (walletIds.size == 1 && walletIds.first() != null) {
+                wallets.firstOrNull { it.id.toLongOrNull() == walletIds.first() }?.name
+                    ?: "Ví đã chọn"
+            } else {
+                "Tổng cộng"
+            }
+        }
 
     LazyColumn(
         modifier =
@@ -806,10 +915,11 @@ private fun BudgetDetailScreen(
                 spent = totalSpent,
                 remaining = remaining,
                 progress = progress,
-                monthProgress = monthProgress,
+                periodProgress = periodProgress,
                 startDate = startDate,
                 endDate = endDate,
-                remainingDays = remainingDays
+                remainingDays = remainingDays,
+                walletLabel = walletLabel
             )
         }
 
@@ -908,13 +1018,16 @@ private fun BudgetDetailSummaryCard(
     spent: Double,
     remaining: Double,
     progress: Float,
-    monthProgress: Float,
+    periodProgress: Float,
     startDate: LocalDate,
     endDate: LocalDate,
-    remainingDays: Long
+    remainingDays: Long,
+    walletLabel: String
 ) {
     val firstCategory = budget?.categories?.firstOrNull()
     val iconTint = firstCategory?.colorHex?.let { parseColor(it) } ?: OceanBlue600
+    val isOverBudget = spent > limit
+    val exceededAmount = (spent - limit).coerceAtLeast(0.0)
 
     Surface(
         modifier =
@@ -980,16 +1093,21 @@ private fun BudgetDetailSummaryCard(
                     Text("Đã chi", color = NeutralGray600, fontSize = 14.sp)
                     Text(
                         formatBudgetMoney(spent),
-                        color = LuminousOnBackground,
+                        color = if (isOverBudget) ExpenseRed600 else LuminousOnBackground,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.ExtraBold
                     )
                 }
                 Column(horizontalAlignment = Alignment.End) {
-                    Text("Còn lại", color = NeutralGray600, fontSize = 14.sp)
                     Text(
-                        formatBudgetMoney(remaining),
-                        color = LuminousOnBackground,
+                        if (isOverBudget) "Đã vượt" else "Còn lại",
+                        color = if (isOverBudget) ExpenseRed600 else NeutralGray600,
+                        fontSize = 14.sp,
+                        fontWeight = if (isOverBudget) FontWeight.Bold else FontWeight.Normal
+                    )
+                    Text(
+                        formatBudgetMoney(if (isOverBudget) exceededAmount else remaining),
+                        color = if (isOverBudget) ExpenseRed600 else LuminousOnBackground,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.ExtraBold
                     )
@@ -1000,8 +1118,8 @@ private fun BudgetDetailSummaryCard(
 
             BudgetProgressRail(
                 progress = progress,
-                markerProgress = monthProgress,
-                color = if (spent > limit) ExpenseRed600 else OceanBlue600
+                markerProgress = periodProgress,
+                color = if (isOverBudget) ExpenseRed600 else OceanBlue600
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -1012,8 +1130,8 @@ private fun BudgetDetailSummaryCard(
                 subtitle = "Còn $remainingDays ngày"
             )
             DetailInfoRow(
-                icon = Icons.Outlined.Language,
-                title = "Tổng cộng",
+                icon = Icons.Outlined.AccountBalanceWallet,
+                title = walletLabel,
                 subtitle = null
             )
         }
@@ -1329,15 +1447,21 @@ private data class CategorySpendRow(
     val childCount: Int
 )
 
-private fun effectiveBudgetCategoryIds(
-    budgets: List<BudgetDisplayModel>,
+private fun transactionMatchesBudget(
+    transaction: Transaction,
+    budget: BudgetDisplayModel,
     categories: List<Category>
-): Set<String> {
-    val selectedIds = budgets.flatMap { budget ->
-        budget.categories.map { it.id.toString() }
-    }.toSet()
+): Boolean {
+    if (transaction.date.isBefore(budget.startDate) || transaction.date.isAfter(budget.endDate)) {
+        return false
+    }
+    if (budget.walletId != null && transaction.walletId != budget.walletId.toString()) {
+        return false
+    }
+
+    val selectedIds = budget.categories.map { it.id.toString() }.toSet()
     val childIds = categories.filter { it.parentId in selectedIds }.map { it.id }
-    return selectedIds + childIds
+    return transaction.categoryId in (selectedIds + childIds)
 }
 
 private fun buildBudgetCategoryRows(
@@ -1384,6 +1508,41 @@ private fun buildBudgetCategoryRows(
 private val shortDateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("dd/MM")
 private val fullDateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
 
+private fun activeBudgetsFor(
+    budgets: List<BudgetDisplayModel>,
+    periodType: BudgetPeriodType,
+    walletId: Long?,
+    today: LocalDate
+): List<BudgetDisplayModel> =
+    budgets.filter { budget ->
+        budget.periodType == periodType &&
+            !today.isBefore(budget.startDate) &&
+            !today.isAfter(budget.endDate) &&
+            (walletId == null || budget.walletId == walletId)
+    }
+
+private fun calculatePeriodProgress(period: BudgetPeriod, today: LocalDate): Float {
+    val totalDays = ChronoUnit.DAYS.between(period.startDate, period.endDate) + 1
+    val clampedToday = today.coerceIn(period.startDate, period.endDate)
+    val elapsedDays = ChronoUnit.DAYS.between(period.startDate, clampedToday) + 1
+    return (elapsedDays.toFloat() / totalDays.toFloat()).coerceIn(0f, 1f)
+}
+
+private fun periodRemainingLabel(period: BudgetPeriod, today: LocalDate): Pair<String, String> {
+    if (period.type == BudgetPeriodType.YEAR) {
+        val clampedMonth = YearMonth.from(today.coerceIn(period.startDate, period.endDate))
+        val endMonth = YearMonth.from(period.endDate)
+        val months = (ChronoUnit.MONTHS.between(clampedMonth, endMonth) + 1).coerceAtLeast(0)
+        return "$months tháng" to "Đến cuối năm"
+    }
+
+    val days = ChronoUnit.DAYS.between(
+        today.coerceIn(period.startDate, period.endDate),
+        period.endDate
+    ).coerceAtLeast(0)
+    return "$days ngày" to "Đến cuối ${budgetPeriodTypeLabel(period.type).lowercase()}"
+}
+
 private fun formatBudgetMoney(value: Double): String = formatMoneyDisplay(value, suffix = "")
 
 private fun formatCompactMoney(value: Double): String {
@@ -1392,7 +1551,7 @@ private fun formatCompactMoney(value: Double): String {
         absValue >= 1_000_000 -> {
             val compact = value / 1_000_000.0
             if (compact.roundToInt().toDouble() == compact) "${compact.roundToInt()} M"
-            else "${String.format("%.1f", compact)} M"
+            else "${String.format(Locale.getDefault(), "%.1f", compact)} M"
         }
         absValue >= 1_000 -> "${(value / 1_000.0).roundToInt()} K"
         else -> formatBudgetMoney(value)

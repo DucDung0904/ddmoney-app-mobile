@@ -27,7 +27,7 @@ class CategoryRepository(
         runCatching { api.getCategories() }
             .onSuccess { remote ->
                 dao.upsertAll(remote.map { it.toEntity() })
-                hideDefaultSeedsMissingOnServer(remote)
+                reconcileMissingServerCategories(remote)
             }
             .onFailure {
                 seedDefaultCategoriesIfNeeded()
@@ -68,8 +68,11 @@ class CategoryRepository(
         }
     }
 
-    private suspend fun hideDefaultSeedsMissingOnServer(remote: List<CategoryResponse>) {
+    private suspend fun reconcileMissingServerCategories(remote: List<CategoryResponse>) {
         val remoteIds = remote.map { it.id }.toSet()
+        if (remoteIds.isNotEmpty()) {
+            dao.hideCategoriesMissingOnServer(remoteIds.toList())
+        }
         val missingServerIds = DefaultCategorySeed.ids.filterNot { it in remoteIds }
         if (missingServerIds.isNotEmpty()) {
             dao.hideDefaultSeedsByServerIds(missingServerIds)

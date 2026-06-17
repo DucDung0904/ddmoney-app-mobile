@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "diagram-generator": {
+      "source": "camoa/claude-skills",
+      "sourceType": "github",
+      "skillPath": "drupal-dev-framework/skills/diagram-generator/SKILL.md",
+      "computedHash": "025dc32ff6ff8642abd584b182b9d4825326dce23ee7cea3c1e7ee9cbc4d32a0"
+    },
     "impeccable": {
       "source": "pbakaus/impeccable",
       "sourceType": "github",

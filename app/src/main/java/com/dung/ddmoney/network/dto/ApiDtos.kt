@@ -195,7 +195,12 @@ data class BudgetResponse(
     val remainingAmount: Double,
     val percentage: Float,
     val month: Int,
-    val year: Int
+    val year: Int,
+    val periodType: String? = null,
+    val startDate: String? = null,
+    val endDate: String? = null,
+    val walletId: Long? = null,
+    val walletName: String? = null
 )
 
 data class BudgetRequest(
@@ -203,5 +208,10 @@ data class BudgetRequest(
     val categoryIds: List<Long>,
     val amount: Double,
     val month: Int,
-    val year: Int
+    val year: Int,
+    val periodType: String,
+    val startDate: String,
+    val endDate: String,
+    val walletId: Long? = null,
+    val walletScope: String
 )

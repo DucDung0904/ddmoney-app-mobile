@@ -46,6 +46,7 @@ import com.dung.ddmoney.ui.analytics.buildExpenseReport
 import com.dung.ddmoney.ui.analytics.comparisonChartAxisMax
 import com.dung.ddmoney.ui.analytics.comparisonChartVisualRatio
 import com.dung.ddmoney.ui.analytics.compactMoney
+import com.dung.ddmoney.ui.analytics.formatPercentageChange
 import com.dung.ddmoney.ui.analytics.formatVnd
 import com.dung.ddmoney.ui.components.CategoryIcon
 import com.dung.ddmoney.ui.dashboard.model.Category
@@ -543,9 +544,7 @@ private fun SpendingDeltaBadge(report: com.dung.ddmoney.ui.analytics.ExpenseRepo
     val valueText =
         when {
             !report.hasPreviousPeriodData -> "Chưa có"
-            isHigher -> "+${compactMoney(difference)}"
-            isLower -> "-${compactMoney(-difference)}"
-            else -> "0"
+            else -> formatPercentageChange(report.differencePercentage)
         }
     val label =
         if (report.hasPreviousPeriodData) {

@@ -9,7 +9,7 @@ import com.dung.ddmoney.network.ApiService
 import com.dung.ddmoney.network.dto.BudgetRequest
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
-import java.util.UUID
+import java.time.LocalDate
 
 data class BudgetDisplayModel(
     val id: String,
@@ -18,6 +18,10 @@ data class BudgetDisplayModel(
     val spentAmount: Double,
     val month: Int,
     val year: Int,
+    val periodType: BudgetPeriodType,
+    val startDate: LocalDate,
+    val endDate: LocalDate,
+    val walletId: Long?,
     val categories: List<CategoryInfo>
 ) {
     val remaining: Double = amount - spentAmount
@@ -43,13 +47,22 @@ class BudgetRepository(
      * spent_amount = tổng transactions có category_id nằm trong danh sách category của ngân sách đó, 
      * cùng tháng/năm, và type là expense.
      */
-    fun getBudgetsWithCalculatedSpent(month: Int, year: Int): Flow<List<BudgetDisplayModel>> {
+    fun getBudgetsWithCalculatedSpent(): Flow<List<BudgetDisplayModel>> {
         val budgetsFlow = budgetDao.getBudgetsWithCategories()
-        val transactionsFlow = transactionDao.observeByMonth(month, year)
+        val transactionsFlow = transactionDao.observeAll()
         val allCategoriesFlow = categoryDao.observeAll()
 
         return combine(budgetsFlow, transactionsFlow, allCategoriesFlow) { budgets, transactions, allCats ->
             budgets.map { budgetWithCats ->
+                val budgetEntity = budgetWithCats.budget
+                val period =
+                    BudgetPeriod.fromStorage(
+                        typeValue = budgetEntity.periodType,
+                        startValue = budgetEntity.startDate,
+                        endValue = budgetEntity.endDate,
+                        month = budgetEntity.month,
+                        year = budgetEntity.year
+                    )
                 val catIds = budgetWithCats.categories.map { it.categoryId }
                 val childIds =
                     allCats
@@ -57,7 +70,15 @@ class BudgetRepository(
                         .mapNotNull { it.serverId }
                 val effectiveCatIds = (catIds + childIds).toSet()
                 val spent = transactions
-                    .filter { it.type == "EXPENSE" && it.categoryId in effectiveCatIds }
+                    .filter { transaction ->
+                        val transactionDate =
+                            runCatching { LocalDate.parse(transaction.date.take(10)) }.getOrNull()
+                        transaction.type == "EXPENSE" &&
+                            transaction.categoryId in effectiveCatIds &&
+                            transactionDate != null &&
+                            period.contains(transactionDate) &&
+                            (budgetEntity.walletId == null || transaction.walletId == budgetEntity.walletId)
+                    }
                     .sumOf { it.amount }
                 
                 val categoryInfos = allCats.filter { 
@@ -68,33 +89,51 @@ class BudgetRepository(
                 }
 
                 BudgetDisplayModel(
-                    id = budgetWithCats.budget.id,
-                    name = budgetWithCats.budget.name,
-                    amount = budgetWithCats.budget.amount,
+                    id = budgetEntity.id,
+                    name = budgetEntity.name,
+                    amount = budgetEntity.amount,
                     spentAmount = spent,
-                    month = budgetWithCats.budget.month,
-                    year = budgetWithCats.budget.year,
+                    month = budgetEntity.month,
+                    year = budgetEntity.year,
+                    periodType = period.type,
+                    startDate = period.startDate,
+                    endDate = period.endDate,
+                    walletId = budgetEntity.walletId,
                     categories = categoryInfos
                 )
             }
         }
     }
 
-    suspend fun sync() {
-        try {
-            val response = api.getBudgets()
+    suspend fun sync(): Result<Unit> =
+        safeCall {
+            val localMetadata = budgetDao.getAllBudgets().associateBy { it.id }
+            val response = api.getCurrentBudgets()
             budgetDao.deleteAllCategories()
             budgetDao.deleteAll()
             
             response.forEach { apiBudget ->
                 val budgetId = apiBudget.id.toString()
+                val existing = localMetadata[budgetId]
+                val period =
+                    BudgetPeriod.fromStorage(
+                        typeValue = apiBudget.periodType ?: existing?.periodType,
+                        startValue = apiBudget.startDate ?: existing?.startDate,
+                        endValue = apiBudget.endDate ?: existing?.endDate,
+                        month = apiBudget.month,
+                        year = apiBudget.year
+                    )
                 val budget = BudgetEntity(
                     id = budgetId,
                     userId = 0L, // Assuming it's handled server side
                     name = apiBudget.name,
                     amount = apiBudget.budgetAmount,
                     month = apiBudget.month,
-                    year = apiBudget.year
+                    year = apiBudget.year,
+                    periodType = period.type.name,
+                    startDate = period.startDate.toString(),
+                    endDate = period.endDate.toString(),
+                    walletId = apiBudget.walletId ?: existing?.walletId
                 )
                 budgetDao.insertBudget(budget)
                 
@@ -103,20 +142,29 @@ class BudgetRepository(
                 }
                 budgetDao.insertBudgetCategories(budgetCategories)
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
+            Unit
         }
-    }
 
     suspend fun createBudget(
         userId: Long,
         name: String,
         amount: Double,
-        month: Int,
-        year: Int,
+        period: BudgetPeriod,
+        walletId: Long?,
         categoryIds: List<Long>
     ) {
-        val req = BudgetRequest(name = name, categoryIds = categoryIds, amount = amount, month = month, year = year)
+        val req = BudgetRequest(
+            name = name,
+            categoryIds = categoryIds,
+            amount = amount,
+            month = period.month,
+            year = period.year,
+            periodType = period.type.name,
+            startDate = period.startDate.toString(),
+            endDate = period.endDate.toString(),
+            walletId = walletId,
+            walletScope = if (walletId == null) "ALL_WALLETS" else "ONE_WALLET"
+        )
         val response = api.createBudget(req)
         
         val budgetId = response.id.toString()
@@ -125,15 +173,20 @@ class BudgetRepository(
             userId = userId,
             name = name,
             amount = amount,
-            month = month,
-            year = year
+            month = period.month,
+            year = period.year,
+            periodType = period.type.name,
+            startDate = period.startDate.toString(),
+            endDate = period.endDate.toString(),
+            walletId = walletId
         )
         budgetDao.insertBudget(budget)
         
-        val budgetCategories = categoryIds.map { 
-            BudgetCategoryEntity(budgetId = budgetId, categoryId = it) 
-        }
-        budgetDao.insertBudgetCategories(budgetCategories)
+        budgetDao.insertBudgetCategories(
+            categoryIds.distinct().map {
+                BudgetCategoryEntity(budgetId = budgetId, categoryId = it)
+            }
+        )
     }
 
     suspend fun updateBudget(
@@ -141,11 +194,22 @@ class BudgetRepository(
         userId: Long,
         name: String,
         amount: Double,
-        month: Int,
-        year: Int,
+        period: BudgetPeriod,
+        walletId: Long?,
         categoryIds: List<Long>
     ) {
-        val req = BudgetRequest(name = name, categoryIds = categoryIds, amount = amount, month = month, year = year)
+        val req = BudgetRequest(
+            name = name,
+            categoryIds = categoryIds,
+            amount = amount,
+            month = period.month,
+            year = period.year,
+            periodType = period.type.name,
+            startDate = period.startDate.toString(),
+            endDate = period.endDate.toString(),
+            walletId = walletId,
+            walletScope = if (walletId == null) "ALL_WALLETS" else "ONE_WALLET"
+        )
         api.updateBudget(budgetId.toLong(), req)
         
         val budget = BudgetEntity(
@@ -153,16 +217,21 @@ class BudgetRepository(
             userId = userId,
             name = name,
             amount = amount,
-            month = month,
-            year = year
+            month = period.month,
+            year = period.year,
+            periodType = period.type.name,
+            startDate = period.startDate.toString(),
+            endDate = period.endDate.toString(),
+            walletId = walletId
         )
         budgetDao.insertBudget(budget)
         
         budgetDao.deleteBudgetCategories(budgetId)
-        val budgetCategories = categoryIds.map { 
-            BudgetCategoryEntity(budgetId = budgetId, categoryId = it) 
-        }
-        budgetDao.insertBudgetCategories(budgetCategories)
+        budgetDao.insertBudgetCategories(
+            categoryIds.distinct().map {
+                BudgetCategoryEntity(budgetId = budgetId, categoryId = it)
+            }
+        )
     }
 
     suspend fun deleteBudget(budgetId: String) {

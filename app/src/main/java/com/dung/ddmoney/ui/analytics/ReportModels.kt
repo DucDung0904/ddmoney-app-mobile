@@ -12,6 +12,7 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
 import java.util.Locale
+import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.round
 import kotlin.math.roundToLong
@@ -243,6 +244,27 @@ private fun parseReportColor(hex: String): Color =
 
 fun formatVnd(amount: Double): String {
     return formatMoneyDisplay(amount)
+}
+
+fun formatPercentageChange(percentage: Float): String {
+    if (!percentage.isFinite()) return "0%"
+
+    val roundedMagnitude = round(abs(percentage.toDouble()) * 10.0) / 10.0
+    val magnitudeText =
+            if (roundedMagnitude % 1.0 == 0.0) {
+                roundedMagnitude.toInt().toString()
+            } else {
+                roundedMagnitude.toString()
+            }
+    val sign =
+            when {
+                roundedMagnitude == 0.0 -> ""
+                percentage > 0f -> "+"
+                percentage < 0f -> "-"
+                else -> ""
+            }
+
+    return "$sign$magnitudeText%"
 }
 
 fun comparisonChartAxisMax(vararg amounts: Double): Double {

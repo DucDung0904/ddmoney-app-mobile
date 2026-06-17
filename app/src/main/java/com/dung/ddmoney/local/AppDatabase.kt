@@ -17,7 +17,7 @@ import com.dung.ddmoney.local.entity.*
         BudgetEntity::class,
         BudgetCategoryEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -38,7 +38,7 @@ abstract class AppDatabase : RoomDatabase() {
                     "ddmoney_db"
                 )
                 .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
-                .addMigrations(MIGRATION_6_7)
+                .addMigrations(MIGRATION_6_7, MIGRATION_7_8)
                 .build()
                 INSTANCE = instance
                 instance
@@ -169,6 +169,16 @@ abstract class AppDatabase : RoomDatabase() {
                     )
                     db.execSQL("DROP TABLE `wallets`")
                     db.execSQL("ALTER TABLE `wallets_new` RENAME TO `wallets`")
+                }
+            }
+
+        private val MIGRATION_7_8 =
+            object : Migration(7, 8) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL("ALTER TABLE budgets ADD COLUMN periodType TEXT NOT NULL DEFAULT 'MONTH'")
+                    db.execSQL("ALTER TABLE budgets ADD COLUMN startDate TEXT")
+                    db.execSQL("ALTER TABLE budgets ADD COLUMN endDate TEXT")
+                    db.execSQL("ALTER TABLE budgets ADD COLUMN walletId INTEGER")
                 }
             }
 

@@ -183,25 +183,7 @@ fun NavGraph(
                     errorMessage = appState.error
             )
         }
-        composable(Routes.ONBOARDING) {
-            OnboardingScreen(
-                    userName = appState.userInfo.name,
-                    isLoading = appState.isLoading,
-                    onComplete = { currency, walletName, walletBalance, walletIcon, walletType ->
-                        viewModel.completeOnboarding(
-                                currency,
-                                walletName,
-                                walletBalance,
-                                walletIcon,
-                                walletType
-                        )
-                        navController.navigate(Routes.MAIN) {
-                            popUpTo(0) { inclusive = true }
-                            launchSingleTop = true
-                        }
-                    }
-            )
-        }
+
 
         // --- MAIN APP FLOW (WITH BOTTOM NAV) ---
         composable(Routes.MAIN) { MainContainer(viewModel, navController) }
@@ -373,7 +355,8 @@ fun MainContainer(viewModel: AppViewModel, rootNavController: NavHostController)
                         composable(NavItem.Ledger.route) {
                             ExpenseBookScreen(
                                     categories = state.categories,
-                                    wallets = state.wallets
+                                    wallets = state.wallets,
+                                    transactionDates = state.transactions.map { it.date }
                             )
                         }
                         composable(NavItem.Profile.route) {

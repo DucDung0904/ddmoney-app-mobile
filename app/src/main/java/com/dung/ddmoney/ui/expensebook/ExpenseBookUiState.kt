@@ -1,8 +1,7 @@
 package com.dung.ddmoney.ui.expensebook
 
-import java.time.DayOfWeek
 import java.time.LocalDate
-import java.time.temporal.TemporalAdjusters
+import java.time.YearMonth
 
 enum class ExpenseBookLoadStatus {
     LOADING,
@@ -14,7 +13,7 @@ enum class ExpenseBookLoadStatus {
 data class ExpenseBookFilter(
     val period: ExpenseBookPeriod = ExpenseBookPeriod.MONTH,
     val fromDate: LocalDate = LocalDate.now().withDayOfMonth(1),
-    val toDate: LocalDate = LocalDate.now(),
+    val toDate: LocalDate = LocalDate.now().withDayOfMonth(LocalDate.now().lengthOfMonth()),
     val type: ExpenseBookTransactionType? = null,
     val categoryId: Long? = null,
     val walletId: Long? = null,
@@ -58,20 +57,42 @@ data class ExpenseBookUiState(
                 filter.period == ExpenseBookPeriod.CUSTOM
 }
 
-fun dateRangeForPeriod(
-    period: ExpenseBookPeriod,
-    today: LocalDate = LocalDate.now(),
-    currentFilter: ExpenseBookFilter = ExpenseBookFilter()
-): Pair<LocalDate, LocalDate> {
-    return when (period) {
-        ExpenseBookPeriod.TODAY -> today to today
-        ExpenseBookPeriod.WEEK ->
-            today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)) to
-                today.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY))
-        ExpenseBookPeriod.MONTH -> today.withDayOfMonth(1) to today.withDayOfMonth(today.lengthOfMonth())
-        ExpenseBookPeriod.CUSTOM -> currentFilter.fromDate to currentFilter.toDate
-    }
+fun dateRangeForMonth(month: YearMonth): Pair<LocalDate, LocalDate> =
+    month.atDay(1) to month.atEndOfMonth()
+
+fun expenseBookMonthOptions(
+    transactionDates: List<LocalDate>,
+    currentMonth: YearMonth = YearMonth.now(),
+    minimumMonthCount: Int = 12
+): List<YearMonth> {
+    val minimumFirstMonth = currentMonth.minusMonths((minimumMonthCount.coerceAtLeast(1) - 1).toLong())
+    val earliestTransactionMonth =
+        transactionDates
+            .asSequence()
+            .map(YearMonth::from)
+            .filterNot { it.isAfter(currentMonth) }
+            .minOrNull()
+    val firstMonth =
+        listOfNotNull(minimumFirstMonth, earliestTransactionMonth)
+            .minOrNull()
+            ?: minimumFirstMonth
+    val monthCount =
+        ((currentMonth.year - firstMonth.year) * 12) +
+            currentMonth.monthValue -
+            firstMonth.monthValue
+
+    return (monthCount downTo 0).map { offset -> currentMonth.minusMonths(offset.toLong()) }
 }
+
+fun expenseBookMonthLabel(
+    month: YearMonth,
+    currentMonth: YearMonth = YearMonth.now()
+): String =
+    if (month == currentMonth) {
+        "Tháng này"
+    } else {
+        month.format(java.time.format.DateTimeFormatter.ofPattern("MM/yyyy"))
+    }
 
 object ExpenseBookPreviewData {
     private val today: LocalDate = LocalDate.now()

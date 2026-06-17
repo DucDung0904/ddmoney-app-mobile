@@ -62,6 +62,19 @@ interface CategoryDao {
 
     @Query(
         """
+        UPDATE categories
+        SET isDeleted = 1, updatedAt = :updatedAt
+        WHERE serverId IS NOT NULL
+          AND serverId NOT IN (:activeServerIds)
+        """
+    )
+    suspend fun hideCategoriesMissingOnServer(
+        activeServerIds: List<Long>,
+        updatedAt: Long = System.currentTimeMillis()
+    )
+
+    @Query(
+        """
         DELETE FROM categories
         WHERE isDefault = 1
           AND (serverId IS NULL OR serverId NOT IN (:activeDefaultServerIds))

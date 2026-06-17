@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.dung.ddmoney.local.AppDatabase
 import com.dung.ddmoney.repository.ExpenseBookRepository
 import java.time.LocalDate
+import java.time.YearMonth
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,6 +14,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 class ExpenseBookViewModel(application: Application) : AndroidViewModel(application) {
@@ -24,20 +26,20 @@ class ExpenseBookViewModel(application: Application) : AndroidViewModel(applicat
 
     private val _uiState = MutableStateFlow(ExpenseBookUiState())
     val uiState: StateFlow<ExpenseBookUiState> = _uiState.asStateFlow()
+    private var loadJob: Job? = null
 
     init {
         loadExpenseBook()
         observeLocalTransactions()
     }
 
-    fun selectPeriod(period: ExpenseBookPeriod) {
-        val current = _uiState.value.filter
-        val (fromDate, toDate) = dateRangeForPeriod(period, currentFilter = current)
+    fun selectMonth(month: YearMonth) {
+        val (fromDate, toDate) = dateRangeForMonth(month)
         _uiState.update {
             it.copy(
                 filter =
-                    current.copy(
-                        period = period,
+                    it.filter.copy(
+                        period = ExpenseBookPeriod.MONTH,
                         fromDate = fromDate,
                         toDate = toDate
                     )
@@ -144,7 +146,8 @@ class ExpenseBookViewModel(application: Application) : AndroidViewModel(applicat
     private fun loadExpenseBook(isRefresh: Boolean = false) {
         val filter = _uiState.value.filter
 
-        viewModelScope.launch {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
             _uiState.update {
                 it.copy(
                     status = if (isRefresh) it.status else ExpenseBookLoadStatus.LOADING,

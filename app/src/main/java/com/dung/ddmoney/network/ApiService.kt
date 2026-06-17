@@ -129,6 +129,9 @@ interface ApiService {
         @Query("year") year: Int? = null
     ): List<BudgetResponse>
 
+    @GET("api/budgets/current")
+    suspend fun getCurrentBudgets(): List<BudgetResponse>
+
     @POST("api/budgets")
     suspend fun createBudget(@Body req: BudgetRequest): BudgetResponse
 

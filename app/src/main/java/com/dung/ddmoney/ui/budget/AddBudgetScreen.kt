@@ -18,15 +18,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.ArrowBackIosNew
+import androidx.compose.material.icons.automirrored.outlined.ArrowForwardIos
 import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.CheckCircle
-import androidx.compose.material.icons.outlined.CreditCard
+import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material3.Button
@@ -36,13 +40,12 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -58,27 +61,30 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dung.ddmoney.repository.BudgetDisplayModel
+import com.dung.ddmoney.repository.BudgetPeriod
+import com.dung.ddmoney.repository.BudgetPeriodType
 import com.dung.ddmoney.ui.components.AppMoneyNumberPadSheet
 import com.dung.ddmoney.ui.components.CategoryIcon
 import com.dung.ddmoney.ui.components.formatMoneyInput
+import com.dung.ddmoney.ui.components.formatMoneyDisplay
 import com.dung.ddmoney.ui.components.parseMoneyInput
 import com.dung.ddmoney.ui.components.withResolvedCategoryHierarchy
 import com.dung.ddmoney.ui.dashboard.model.Category
 import com.dung.ddmoney.ui.dashboard.model.CategoryType
+import com.dung.ddmoney.ui.dashboard.model.Transaction
 import com.dung.ddmoney.ui.dashboard.model.Wallet
+import com.dung.ddmoney.ui.theme.ExpenseRed50
 import com.dung.ddmoney.ui.theme.LuminousBackground
 import com.dung.ddmoney.ui.theme.LuminousOnBackground
 import com.dung.ddmoney.ui.theme.LuminousSurfaceContainerLow
 import com.dung.ddmoney.ui.theme.LuminousSurfaceContainerLowest
+import com.dung.ddmoney.ui.theme.ExpenseRed600
 import com.dung.ddmoney.ui.theme.NeutralGray100
 import com.dung.ddmoney.ui.theme.NeutralGray400
 import com.dung.ddmoney.ui.theme.NeutralGray600
 import com.dung.ddmoney.ui.theme.OceanBlue50
 import com.dung.ddmoney.ui.theme.OceanBlue600
 import com.dung.ddmoney.ui.theme.OceanBlue800
-import com.dung.ddmoney.ui.wallets.WalletIconMap
-import java.time.YearMonth
-import java.time.format.DateTimeFormatter
 
 private val AddBudgetBackground = LuminousBackground
 private val DisabledSave = Color(0xFFC9C9C6)
@@ -89,8 +95,17 @@ private val SoftDivider = Color(0xFFE2E4EA)
 fun AddBudgetScreen(
     categories: List<Category>,
     wallets: List<Wallet> = emptyList(),
+    transactions: List<Transaction> = emptyList(),
+    existingBudgets: List<BudgetDisplayModel> = emptyList(),
     initialBudget: BudgetDisplayModel? = null,
-    onSave: (name: String, amount: Double, categoryIds: List<Long>, month: Int, year: Int) -> Unit,
+    initialPeriodType: BudgetPeriodType = BudgetPeriodType.MONTH,
+    onSave: (
+        name: String,
+        amount: Double,
+        categoryIds: List<Long>,
+        period: BudgetPeriod,
+        walletId: Long?
+    ) -> Unit,
     onDismiss: () -> Unit
 ) {
     var amountText by remember(initialBudget) {
@@ -103,26 +118,38 @@ fun AddBudgetScreen(
                 ?: "0"
         )
     }
-    var repeatEnabled by remember { mutableStateOf(false) }
     var showAmountPad by remember { mutableStateOf(false) }
     var showCategoryPicker by remember { mutableStateOf(false) }
-    var showMonthPicker by remember { mutableStateOf(false) }
-    var selectedPeriod by remember(initialBudget) {
-        mutableStateOf(initialBudget?.let { YearMonth.of(it.year, it.month) } ?: YearMonth.now())
+    var showPeriodPicker by remember { mutableStateOf(false) }
+    var showWalletPicker by remember { mutableStateOf(false) }
+    var selectedPeriod by remember(initialBudget, initialPeriodType) {
+        mutableStateOf(
+            initialBudget?.let {
+                BudgetPeriod(it.periodType, it.startDate, it.endDate)
+            } ?: BudgetPeriod.current(initialPeriodType)
+        )
     }
-    var selectedWallet by remember { mutableStateOf<Wallet?>(null) }
+    var selectedWalletId by remember(initialBudget) { mutableStateOf(initialBudget?.walletId) }
     val selectedCategoryIds = remember(initialBudget) {
         mutableStateListOf<Long>().apply {
-            initialBudget?.categories?.forEach { add(it.id) }
+            initialBudget?.categories?.forEach { category -> add(category.id) }
         }
     }
 
-    LaunchedEffect(wallets) {
-        val currentId = selectedWallet?.id
-        if (currentId == null || wallets.none { it.id == currentId }) {
-            selectedWallet = wallets.firstOrNull { it.isDefault } ?: wallets.firstOrNull()
+    LaunchedEffect(wallets, selectedWalletId) {
+        if (
+            selectedWalletId != null &&
+                wallets.isNotEmpty() &&
+                wallets.none { it.id.toLongOrNull() == selectedWalletId }
+        ) {
+            selectedWalletId = null
         }
     }
+    val selectableWallets = remember(wallets) { wallets.filter { it.id.toLongOrNull() != null } }
+    val selectedWallet =
+        remember(selectableWallets, selectedWalletId) {
+            selectableWallets.firstOrNull { it.id.toLongOrNull() == selectedWalletId }
+        }
 
     val expenseCategories =
         remember(categories) {
@@ -135,8 +162,7 @@ fun AddBudgetScreen(
     val selectedCategories =
         remember(selectedIds, expenseCategories) {
             expenseCategories.filter { category ->
-                val categoryId = category.id.toLongOrNull()
-                categoryId != null && categoryId in selectedIds
+                category.id.toLongOrNull() in selectedIds
             }
         }
     val categoryLabel =
@@ -146,10 +172,45 @@ fun AddBudgetScreen(
             else -> "${selectedCategories.size} nhóm đã chọn"
         }
     val amount = parseMoneyInput(amountText)
-    val canSave = selectedCategoryIds.isNotEmpty() && amount > 0.0
+    val conflictingCategoryIds =
+        remember(existingBudgets, selectedIds, selectedPeriod, initialBudget?.id) {
+            findConflictingCategoryIdsForPeriod(
+                budgets = existingBudgets,
+                categoryIds = selectedIds,
+                period = selectedPeriod,
+                excludedBudgetId = initialBudget?.id
+            )
+        }
+    val conflictingCategoryNames =
+        remember(conflictingCategoryIds, selectedCategories) {
+            selectedCategories
+                .filter { it.id.toLongOrNull() in conflictingCategoryIds }
+                .joinToString(", ") { it.name }
+        }
+    val existingSpent =
+        remember(transactions, expenseCategories, selectedIds, selectedPeriod, selectedWalletId) {
+            calculateSpentForBudgetDraft(
+                transactions = transactions,
+                categories = expenseCategories,
+                selectedCategoryIds = selectedIds,
+                period = selectedPeriod,
+                walletId = selectedWalletId
+            )
+        }
+    val exceededAmount = (existingSpent - amount).coerceAtLeast(0.0)
+    val isAlreadyOverLimit =
+        amount > 0.0 &&
+            selectedCategoryIds.isNotEmpty() &&
+            existingSpent > amount
+    val canSave =
+        selectedCategoryIds.isNotEmpty() &&
+            amount > 0.0 &&
+            conflictingCategoryIds.isEmpty()
     val inferredName =
         when {
-            selectedCategories.isEmpty() -> initialBudget?.name ?: "Ngân sách tháng ${selectedPeriod.monthValue}"
+            selectedCategories.isEmpty() ->
+                initialBudget?.name
+                    ?: "Ngân sách ${budgetPeriodTypeLabel(selectedPeriod.type).lowercase()}"
             selectedCategories.size == 1 -> selectedCategories.first().name
             else -> selectedCategories.joinToString(", ") { it.name }
         }
@@ -192,13 +253,29 @@ fun AddBudgetScreen(
                     wallet = selectedWallet,
                     onCategoryClick = { showCategoryPicker = true },
                     onAmountClick = { showAmountPad = true },
-                    onPeriodClick = { showMonthPicker = true }
+                    onPeriodClick = { showPeriodPicker = true },
+                    onWalletClick = { showWalletPicker = true }
                 )
 
-                RepeatBudgetCard(
-                    checked = repeatEnabled,
-                    onCheckedChange = { repeatEnabled = it }
-                )
+                if (conflictingCategoryIds.isNotEmpty()) {
+                    Text(
+                        text =
+                            "Các danh mục đã có ngân sách cho " +
+                                formatBudgetPeriodLabel(selectedPeriod) +
+                                ": $conflictingCategoryNames.",
+                        color = ExpenseRed600,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(horizontal = 4.dp)
+                    )
+                }
+
+                if (isAlreadyOverLimit) {
+                    BudgetExceededWarning(
+                        spentAmount = existingSpent,
+                        exceededAmount = exceededAmount
+                    )
+                }
             }
 
             Button(
@@ -208,8 +285,8 @@ fun AddBudgetScreen(
                             inferredName,
                             amount,
                             selectedCategoryIds.toList(),
-                            selectedPeriod.monthValue,
-                            selectedPeriod.year
+                            selectedPeriod,
+                            selectedWalletId
                         )
                     }
                 },
@@ -254,15 +331,68 @@ fun AddBudgetScreen(
         onDismiss = { showCategoryPicker = false }
     )
 
-    BudgetMonthPickerSheet(
-        visible = showMonthPicker,
+    BudgetPeriodPickerSheet(
+        visible = showPeriodPicker,
         selectedPeriod = selectedPeriod,
         onSelect = {
             selectedPeriod = it
-            showMonthPicker = false
+            showPeriodPicker = false
         },
-        onDismiss = { showMonthPicker = false }
+        onDismiss = { showPeriodPicker = false }
     )
+
+    BudgetWalletPickerSheet(
+        visible = showWalletPicker,
+        wallets = selectableWallets,
+        selectedWalletId = selectedWalletId,
+        onSelect = {
+            selectedWalletId = it
+            showWalletPicker = false
+        },
+        onDismiss = { showWalletPicker = false }
+    )
+}
+
+@Composable
+private fun BudgetExceededWarning(
+    spentAmount: Double,
+    exceededAmount: Double
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        color = ExpenseRed50
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.ErrorOutline,
+                contentDescription = null,
+                tint = ExpenseRed600,
+                modifier = Modifier.size(22.dp)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Column {
+                Text(
+                    text = "Ngân sách này đã vượt hạn mức",
+                    color = ExpenseRed600,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+                Spacer(modifier = Modifier.height(3.dp))
+                Text(
+                    text =
+                        "Đã chi ${formatMoneyDisplay(spentAmount)} trong kỳ, " +
+                            "vượt ${formatMoneyDisplay(exceededAmount)} so với hạn mức đang nhập.",
+                    color = LuminousOnBackground,
+                    fontSize = 12.sp,
+                    lineHeight = 17.sp
+                )
+            }
+        }
+    }
 }
 
 @Composable
@@ -307,11 +437,12 @@ private fun BudgetFormCard(
     categoryLabel: String,
     selectedCategories: List<Category>,
     amountText: String,
-    period: YearMonth,
+    period: BudgetPeriod,
     wallet: Wallet?,
     onCategoryClick: () -> Unit,
     onAmountClick: () -> Unit,
-    onPeriodClick: () -> Unit
+    onPeriodClick: () -> Unit,
+    onWalletClick: () -> Unit
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -358,7 +489,7 @@ private fun BudgetFormCard(
                 },
                 content = {
                     Text(
-                        text = formatPeriodLabel(period),
+                        text = formatBudgetPeriodLabel(period),
                         color = LuminousOnBackground,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium,
@@ -371,14 +502,13 @@ private fun BudgetFormCard(
             FormDivider()
 
             BudgetFormRow(
-                onClick = {},
-                showChevron = false,
+                onClick = onWalletClick,
                 icon = {
-                    WalletAvatar(wallet = wallet)
+                    BudgetWalletIcon(wallet = wallet, size = 34.dp)
                 },
                 content = {
                     Text(
-                        text = wallet?.name ?: "Tất cả ví",
+                        text = wallet?.name ?: "Tổng cộng",
                         color = LuminousOnBackground,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium,
@@ -415,34 +545,6 @@ private fun CategoryAvatar(selectedCategories: List<Category>) {
                 icon = first.icon,
                 modifier = Modifier.size(23.dp),
                 tint = first.color
-            )
-        }
-    }
-}
-
-@Composable
-private fun WalletAvatar(wallet: Wallet?) {
-    Box(
-        modifier =
-            Modifier
-                .size(34.dp)
-                .clip(CircleShape)
-                .background(if (wallet == null) OceanBlue50 else Color.Transparent),
-        contentAlignment = Alignment.Center
-    ) {
-        if (wallet == null) {
-            Icon(
-                imageVector = Icons.Outlined.CreditCard,
-                contentDescription = null,
-                tint = OceanBlue600,
-                modifier = Modifier.size(20.dp)
-            )
-        } else {
-            WalletIconMap.WalletIcon(
-                key = wallet.icon,
-                walletType = wallet.type,
-                contentDescription = null,
-                modifier = Modifier.size(34.dp)
             )
         }
     }
@@ -548,54 +650,6 @@ private fun FormDivider() {
         color = SoftDivider,
         thickness = 1.dp
     )
-}
-
-@Composable
-private fun RepeatBudgetCard(
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(22.dp),
-        color = LuminousSurfaceContainerLowest,
-        shadowElevation = 1.dp
-    ) {
-        Row(
-            modifier = Modifier.padding(start = 16.dp, end = 14.dp, top = 15.dp, bottom = 15.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "Lặp lại ngân sách này",
-                    color = LuminousOnBackground,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Medium
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Ngân sách được tự động lặp lại ở kỳ hạn tiếp theo.",
-                    color = NeutralGray600,
-                    fontSize = 13.sp,
-                    lineHeight = 16.sp
-                )
-            }
-
-            Switch(
-                checked = checked,
-                onCheckedChange = onCheckedChange,
-                colors =
-                    SwitchDefaults.colors(
-                        checkedThumbColor = LuminousSurfaceContainerLowest,
-                        checkedTrackColor = OceanBlue600,
-                        uncheckedThumbColor = LuminousSurfaceContainerLowest,
-                        uncheckedTrackColor = DisabledSave,
-                        uncheckedBorderColor = Color.Transparent,
-                        checkedBorderColor = Color.Transparent
-                    )
-            )
-        }
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -869,19 +923,54 @@ private fun BudgetCategoryRow(
     }
 }
 
+private fun toggleBudgetCategory(
+    categoryId: String,
+    selectedCategoryIds: MutableList<Long>
+) {
+    val id = categoryId.toLongOrNull() ?: return
+    if (id in selectedCategoryIds) {
+        selectedCategoryIds.remove(id)
+    } else {
+        selectedCategoryIds.add(id)
+    }
+}
+
+private fun toggleBudgetCategoryGroup(
+    parent: Category,
+    children: List<Category>,
+    selectedCategoryIds: MutableList<Long>
+) {
+    val ids = (listOf(parent) + children).mapNotNull { it.id.toLongOrNull() }
+    if (ids.isEmpty()) return
+
+    if (ids.all { it in selectedCategoryIds }) {
+        selectedCategoryIds.removeAll(ids.toSet())
+    } else {
+        ids.forEach { id ->
+            if (id !in selectedCategoryIds) {
+                selectedCategoryIds.add(id)
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun BudgetMonthPickerSheet(
+private fun BudgetPeriodPickerSheet(
     visible: Boolean,
-    selectedPeriod: YearMonth,
-    onSelect: (YearMonth) -> Unit,
+    selectedPeriod: BudgetPeriod,
+    onSelect: (BudgetPeriod) -> Unit,
     onDismiss: () -> Unit
 ) {
     if (!visible) return
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val current = remember { YearMonth.now() }
-    val months = remember(current) { (-1L..5L).map { current.plusMonths(it) } }
+    var displayedType by remember(selectedPeriod) { mutableStateOf(selectedPeriod.type) }
+    var displayedYear by remember(selectedPeriod) { mutableIntStateOf(selectedPeriod.startDate.year) }
+    val periods =
+        remember(displayedType, displayedYear) {
+            BudgetPeriod.periodsInYear(displayedType, displayedYear)
+        }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -906,82 +995,94 @@ private fun BudgetMonthPickerSheet(
             )
             Spacer(modifier = Modifier.height(12.dp))
 
-            months.forEach { month ->
-                val selected = month == selectedPeriod
-                Row(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(18.dp))
-                            .background(if (selected) OceanBlue50 else Color.Transparent)
-                            .clickable { onSelect(month) }
-                            .padding(horizontal = 12.dp, vertical = 11.dp),
-                    verticalAlignment = Alignment.CenterVertically
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Surface(
+                    onClick = { displayedYear-- },
+                    shape = CircleShape,
+                    color = LuminousSurfaceContainerLow
                 ) {
                     Icon(
-                        imageVector = Icons.Outlined.CalendarToday,
-                        contentDescription = null,
-                        tint = if (selected) OceanBlue600 else NeutralGray600,
-                        modifier = Modifier.size(20.dp)
+                        imageVector = Icons.Outlined.ArrowBackIosNew,
+                        contentDescription = "Năm trước",
+                        modifier = Modifier.padding(12.dp).size(18.dp),
+                        tint = LuminousOnBackground
                     )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = formatPeriodLabel(month),
-                        modifier = Modifier.weight(1f),
-                        color = if (selected) OceanBlue800 else LuminousOnBackground,
-                        fontSize = 15.sp,
-                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+                }
+                Text(
+                    text = displayedYear.toString(),
+                    color = LuminousOnBackground,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+                Surface(
+                    onClick = { displayedYear++ },
+                    shape = CircleShape,
+                    color = LuminousSurfaceContainerLow
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.ArrowForwardIos,
+                        contentDescription = "Năm sau",
+                        modifier = Modifier.padding(12.dp).size(18.dp),
+                        tint = LuminousOnBackground
                     )
-                    if (selected) {
+                }
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+
+            BudgetPeriodTabRow(
+                selectedPosition = budgetPeriodTypes.indexOf(displayedType).toFloat(),
+                useCurrentLabels = false,
+                onSelect = { displayedType = it }
+            )
+
+            LazyColumn(modifier = Modifier.heightIn(max = 500.dp)) {
+                items(
+                    items = periods,
+                    key = { "${it.type}-${it.startDate}" }
+                ) { period ->
+                    val selected =
+                        period.type == selectedPeriod.type &&
+                            period.startDate == selectedPeriod.startDate &&
+                            period.endDate == selectedPeriod.endDate
+                    Row(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(18.dp))
+                                .background(if (selected) OceanBlue50 else Color.Transparent)
+                                .clickable { onSelect(period) }
+                                .padding(horizontal = 12.dp, vertical = 11.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Icon(
-                            imageVector = Icons.Outlined.CheckCircle,
+                            imageVector = Icons.Outlined.CalendarToday,
                             contentDescription = null,
-                            tint = OceanBlue600,
+                            tint = if (selected) OceanBlue600 else NeutralGray600,
                             modifier = Modifier.size(20.dp)
                         )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = formatBudgetPeriodLabel(period),
+                            modifier = Modifier.weight(1f),
+                            color = if (selected) OceanBlue800 else LuminousOnBackground,
+                            fontSize = 15.sp,
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+                        )
+                        if (selected) {
+                            Icon(
+                                imageVector = Icons.Outlined.CheckCircle,
+                                contentDescription = null,
+                                tint = OceanBlue600,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
                 }
             }
         }
     }
-}
-
-private fun toggleBudgetCategory(
-    categoryId: String,
-    selectedCategoryIds: MutableList<Long>
-) {
-    val catIdLong = categoryId.toLongOrNull() ?: return
-    if (selectedCategoryIds.contains(catIdLong)) {
-        selectedCategoryIds.remove(catIdLong)
-    } else {
-        selectedCategoryIds.add(catIdLong)
-    }
-}
-
-private fun toggleBudgetCategoryGroup(
-    parent: Category,
-    children: List<Category>,
-    selectedCategoryIds: MutableList<Long>
-) {
-    val ids = (listOf(parent) + children).mapNotNull { it.id.toLongOrNull() }
-    if (ids.isEmpty()) return
-
-    if (ids.all { selectedCategoryIds.contains(it) }) {
-        selectedCategoryIds.removeAll(ids.toSet())
-    } else {
-        ids.forEach { id ->
-            if (!selectedCategoryIds.contains(id)) {
-                selectedCategoryIds.add(id)
-            }
-        }
-    }
-}
-
-private fun formatPeriodLabel(period: YearMonth): String {
-    val current = YearMonth.now()
-    val start = period.atDay(1)
-    val end = period.atEndOfMonth()
-    val dateFormatter = DateTimeFormatter.ofPattern("dd/MM")
-    val prefix = if (period == current) "Tháng này" else "Tháng ${period.monthValue}"
-    return "$prefix (${start.format(dateFormatter)} - ${end.format(dateFormatter)})"
 }

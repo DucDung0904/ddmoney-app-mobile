@@ -66,6 +66,21 @@ class TokenManager(context: Context) {
         }.getOrDefault(true)
     }
 
+    fun isNewUserFromToken(): Boolean {
+        val token = getToken() ?: return false
+        return runCatching {
+            val payload = token.split(".").getOrNull(1) ?: return false
+            val json = JSONObject(String(Base64.decode(payload, Base64.URL_SAFE or Base64.NO_WRAP)))
+            if (json.has("new")) {
+                json.getBoolean("new")
+            } else if (json.has("isNew")) {
+                json.getBoolean("isNew")
+            } else {
+                false
+            }
+        }.getOrDefault(false)
+    }
+
     fun clearToken() {
         prefs.edit()
             .remove(KEY_TOKEN)

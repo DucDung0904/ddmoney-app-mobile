@@ -3,6 +3,7 @@ package com.dung.ddmoney.ui.expensebook
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,11 +15,17 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -55,8 +62,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -68,8 +77,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dung.ddmoney.ui.components.CategoryIcon
 import com.dung.ddmoney.ui.components.formatMoneyDisplay
@@ -97,9 +109,11 @@ import com.dung.ddmoney.ui.theme.OceanBlue800
 import com.dung.ddmoney.ui.theme.SavingsTeal50
 import com.dung.ddmoney.ui.theme.SavingsTeal600
 import java.time.LocalDate
+import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
+import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -110,12 +124,21 @@ fun ExpenseBookScreen(
     viewModel: ExpenseBookViewModel = viewModel(),
     categories: List<Category> = emptyList(),
     wallets: List<Wallet> = emptyList(),
+    transactionDates: List<LocalDate> = emptyList(),
     onTransactionClick: (TransactionItem) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showSearch by remember { mutableStateOf(false) }
     var showFilters by remember { mutableStateOf(false) }
     var selectedTransaction by remember { mutableStateOf<TransactionItem?>(null) }
+    val currentMonth = remember { YearMonth.now() }
+    val monthOptions =
+        remember(transactionDates, currentMonth) {
+            expenseBookMonthOptions(
+                transactionDates = transactionDates,
+                currentMonth = currentMonth
+            )
+        }
 
     LaunchedEffect(categories, wallets) {
         viewModel.setFilterOptions(
@@ -144,7 +167,9 @@ fun ExpenseBookScreen(
         showSearch = showSearch,
         onSearchVisibilityChange = { showSearch = it },
         onSearchQueryChange = viewModel::updateSearchQuery,
-        onPeriodSelected = viewModel::selectPeriod,
+        monthOptions = monthOptions,
+        currentMonth = currentMonth,
+        onMonthSelected = viewModel::selectMonth,
         onRefresh = viewModel::refresh,
         onRetry = viewModel::retry,
         onOpenFilters = { showFilters = true },
@@ -196,99 +221,200 @@ private fun ExpenseBookScreenContent(
     showSearch: Boolean,
     onSearchVisibilityChange: (Boolean) -> Unit,
     onSearchQueryChange: (String) -> Unit,
-    onPeriodSelected: (ExpenseBookPeriod) -> Unit,
+    monthOptions: List<YearMonth>,
+    currentMonth: YearMonth,
+    onMonthSelected: (YearMonth) -> Unit,
     onRefresh: () -> Unit,
     onRetry: () -> Unit,
     onOpenFilters: () -> Unit,
     onTransactionClick: (TransactionItem) -> Unit
 ) {
     val pullRefreshState = rememberPullToRefreshState()
+    val selectedMonth =
+        uiState.filter
+            .takeIf { it.period == ExpenseBookPeriod.MONTH }
+            ?.let { YearMonth.from(it.fromDate) }
+    val initialPage =
+        monthOptions
+            .indexOf(selectedMonth ?: currentMonth)
+            .takeIf { it >= 0 }
+            ?: monthOptions.lastIndex.coerceAtLeast(0)
+    val pagerState =
+        rememberPagerState(
+            initialPage = initialPage,
+            pageCount = { monthOptions.size }
+        )
+    val coroutineScope = rememberCoroutineScope()
 
-    Box(
+    LaunchedEffect(pagerState.settledPage, monthOptions) {
+        val month = monthOptions.getOrNull(pagerState.settledPage) ?: return@LaunchedEffect
+        if (uiState.filter.period != ExpenseBookPeriod.MONTH || selectedMonth != month) {
+            onMonthSelected(month)
+        }
+    }
+
+    Column(
         modifier =
             modifier
                 .fillMaxSize()
                 .background(LuminousBackground)
     ) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(start = 20.dp, end = 20.dp, top = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            ExpenseBookHeader(
+                hasActiveFilters = uiState.hasActiveFilters,
+                onSearchClick = { onSearchVisibilityChange(!showSearch) },
+                onFilterClick = onOpenFilters
+            )
+
+            AnimatedVisibility(visible = showSearch) {
+                ExpenseBookSearchField(
+                    query = uiState.filter.query,
+                    onQueryChange = onSearchQueryChange,
+                    onClose = {
+                        onSearchQueryChange("")
+                        onSearchVisibilityChange(false)
+                    }
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        ExpenseBookMonthTabRow(
+            months = monthOptions,
+            selectedPosition =
+                if (uiState.filter.period == ExpenseBookPeriod.MONTH) {
+                    pagerState.currentPage + pagerState.currentPageOffsetFraction
+                } else {
+                    null
+                },
+            scrollTargetPosition = pagerState.currentPage + pagerState.currentPageOffsetFraction,
+            currentMonth = currentMonth,
+            onMonthSelected = { month ->
+                val page = monthOptions.indexOf(month)
+                if (page < 0) return@ExpenseBookMonthTabRow
+
+                if (page == pagerState.currentPage) {
+                    onMonthSelected(month)
+                } else {
+                    coroutineScope.launch {
+                        pagerState.animateScrollToPage(page)
+                    }
+                }
+            }
+        )
+
         PullToRefreshBox(
-            modifier = Modifier.fillMaxSize(),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
             isRefreshing = uiState.isRefreshing,
             onRefresh = onRefresh,
             state = pullRefreshState
         ) {
-            LazyColumn(
+            HorizontalPager(
+                state = pagerState,
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 28.dp, bottom = 148.dp),
-                verticalArrangement = Arrangement.spacedBy(18.dp)
-            ) {
-                item {
-                    ExpenseBookHeader(
-                        hasActiveFilters = uiState.hasActiveFilters,
-                        onSearchClick = { onSearchVisibilityChange(!showSearch) },
-                        onFilterClick = onOpenFilters
-                    )
-                }
+                beyondViewportPageCount = 1
+            ) { page ->
+                val pageMonth = monthOptions[page]
+                val pageHasCurrentData =
+                    (uiState.filter.period == ExpenseBookPeriod.MONTH && selectedMonth == pageMonth) ||
+                        (uiState.filter.period == ExpenseBookPeriod.CUSTOM &&
+                            page == pagerState.settledPage)
 
-                item {
-                    AnimatedVisibility(visible = showSearch) {
-                        ExpenseBookSearchField(
-                            query = uiState.filter.query,
-                            onQueryChange = onSearchQueryChange,
-                            onClose = {
-                                onSearchQueryChange("")
-                                onSearchVisibilityChange(false)
-                            }
-                        )
-                    }
-                }
-
-                item {
-                    FilterChipRow(
-                        selectedPeriod = uiState.filter.period,
-                        onPeriodSelected = onPeriodSelected
-                    )
-                }
-
-                when (uiState.status) {
-                    ExpenseBookLoadStatus.LOADING -> {
-                        item { ExpenseBookLoadingState() }
-                    }
-
-                    ExpenseBookLoadStatus.ERROR -> {
-                        item {
-                            ExpenseBookErrorState(
-                                message = uiState.errorMessage ?: "Không thể tải dữ liệu sổ chi tiêu",
-                                onRetry = onRetry
-                            )
-                        }
-                    }
-
-                    ExpenseBookLoadStatus.EMPTY,
-                    ExpenseBookLoadStatus.SUCCESS -> {
-                        item { SummaryCard(summary = uiState.summary) }
-                        item {
-                            CategoryStatisticSection(
-                                statistics = uiState.categoryStatistics
-                            )
-                        }
-                        item {
-                            SectionHeader(
-                                title = "Nhật ký giao dịch",
-                                subtitle = rangeLabel(uiState.filter.fromDate, uiState.filter.toDate)
-                            )
-                        }
-
-                        if (uiState.groupedTransactions.isEmpty()) {
-                            item { EmptyState() }
+                ExpenseBookMonthPage(
+                    uiState =
+                        if (pageHasCurrentData) {
+                            uiState
                         } else {
-                            uiState.groupedTransactions.forEach { group ->
-                                item(key = "expense_group_${group.date}") {
-                                    TransactionGroupItem(
-                                        group = group,
-                                        onTransactionClick = onTransactionClick
-                                    )
-                                }
-                            }
+                            uiState.copy(status = ExpenseBookLoadStatus.LOADING)
+                        },
+                    scrollToJournal = showSearch && page == pagerState.settledPage,
+                    onRetry = onRetry,
+                    onTransactionClick = onTransactionClick
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExpenseBookMonthPage(
+    uiState: ExpenseBookUiState,
+    scrollToJournal: Boolean,
+    onRetry: () -> Unit,
+    onTransactionClick: (TransactionItem) -> Unit
+) {
+    val listState = rememberLazyListState()
+
+    LaunchedEffect(scrollToJournal, uiState.status) {
+        if (
+            scrollToJournal &&
+                (uiState.status == ExpenseBookLoadStatus.EMPTY ||
+                    uiState.status == ExpenseBookLoadStatus.SUCCESS)
+        ) {
+            listState.animateScrollToItem(2)
+        }
+    }
+
+    LazyColumn(
+        state = listState,
+        modifier = Modifier.fillMaxSize(),
+        contentPadding =
+            PaddingValues(
+                start = 20.dp,
+                end = 20.dp,
+                top = 18.dp,
+                bottom = 148.dp
+            ),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
+    ) {
+        when (uiState.status) {
+            ExpenseBookLoadStatus.LOADING -> {
+                item { ExpenseBookLoadingState() }
+            }
+
+            ExpenseBookLoadStatus.ERROR -> {
+                item {
+                    ExpenseBookErrorState(
+                        message = uiState.errorMessage ?: "Không thể tải dữ liệu sổ chi tiêu",
+                        onRetry = onRetry
+                    )
+                }
+            }
+
+            ExpenseBookLoadStatus.EMPTY,
+            ExpenseBookLoadStatus.SUCCESS -> {
+                item { SummaryCard(summary = uiState.summary) }
+                item {
+                    CategoryStatisticSection(
+                        statistics = uiState.categoryStatistics
+                    )
+                }
+                item {
+                    SectionHeader(
+                        title = "Nhật ký giao dịch",
+                        subtitle = rangeLabel(uiState.filter.fromDate, uiState.filter.toDate)
+                    )
+                }
+
+                if (uiState.groupedTransactions.isEmpty()) {
+                    item { EmptyState() }
+                } else {
+                    uiState.groupedTransactions.forEach { group ->
+                        item(key = "expense_group_${group.date}") {
+                            TransactionGroupItem(
+                                group = group,
+                                onTransactionClick = onTransactionClick
+                            )
                         }
                     }
                 }
@@ -413,24 +539,115 @@ private fun ExpenseBookSearchField(
 }
 
 @Composable
-fun FilterChipRow(
-    selectedPeriod: ExpenseBookPeriod,
-    onPeriodSelected: (ExpenseBookPeriod) -> Unit,
+fun ExpenseBookMonthTabRow(
+    months: List<YearMonth>,
+    selectedPosition: Float?,
+    scrollTargetPosition: Float,
+    currentMonth: YearMonth,
+    onMonthSelected: (YearMonth) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    LazyRow(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        contentPadding = PaddingValues(horizontal = 2.dp)
-    ) {
-        items(ExpenseBookPeriod.values().size) { index ->
-            val period = ExpenseBookPeriod.values()[index]
-            SelectablePill(
-                label = period.label,
-                selected = selectedPeriod == period,
-                onClick = { onPeriodSelected(period) }
-            )
+    val scrollState = rememberScrollState()
+    val density = LocalDensity.current
+    var viewportWidthPx by remember { mutableIntStateOf(0) }
+    val tabWidth = 112.dp
+    val tabWidthPx = with(density) { tabWidth.roundToPx() }
+    val targetIndex =
+        scrollTargetPosition
+            .roundToInt()
+            .coerceIn(0, months.lastIndex.coerceAtLeast(0))
+
+    LaunchedEffect(targetIndex, viewportWidthPx, months.size, scrollState.maxValue) {
+        if (viewportWidthPx > 0 && months.isNotEmpty()) {
+            val targetScroll =
+                (targetIndex * tabWidthPx - (viewportWidthPx - tabWidthPx) / 2)
+                    .coerceIn(0, scrollState.maxValue)
+            scrollState.animateScrollTo(targetScroll)
         }
+    }
+
+    Box(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .height(50.dp)
+                .onSizeChanged { viewportWidthPx = it.width }
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .horizontalScroll(scrollState)
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .requiredWidth(tabWidth * months.size)
+                        .height(50.dp)
+            ) {
+                Row(modifier = Modifier.fillMaxSize()) {
+                    months.forEachIndexed { index, month ->
+                        ExpenseBookMonthTab(
+                            width = tabWidth,
+                            label = expenseBookMonthLabel(month, currentMonth),
+                            selected =
+                                selectedPosition?.let { abs(it - index) < 0.5f }
+                                    ?: false,
+                            onClick = { onMonthSelected(month) }
+                        )
+                    }
+                }
+
+                selectedPosition?.let { position ->
+                    Box(
+                        modifier =
+                            Modifier
+                                .align(Alignment.BottomStart)
+                                .offset(x = tabWidth * position.coerceIn(0f, months.lastIndex.toFloat()))
+                                .padding(horizontal = 12.dp)
+                                .width(tabWidth - 24.dp)
+                                .height(3.dp)
+                                .background(
+                                    color = LuminousOnSurface,
+                                    shape =
+                                        RoundedCornerShape(
+                                            topStart = 3.dp,
+                                            topEnd = 3.dp
+                                        )
+                                )
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExpenseBookMonthTab(
+    width: Dp,
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier =
+            Modifier
+                .width(width)
+                .height(50.dp)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onClick
+                ),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = label,
+            fontSize = 14.sp,
+            fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.SemiBold,
+            color = if (selected) LuminousOnSurface else NeutralGray600,
+            maxLines = 1
+        )
     }
 }
 
@@ -1427,7 +1644,13 @@ private fun ExpenseBookScreenPreview() {
             showSearch = false,
             onSearchVisibilityChange = {},
             onSearchQueryChange = {},
-            onPeriodSelected = {},
+            monthOptions =
+                expenseBookMonthOptions(
+                    transactionDates = ExpenseBookPreviewData.transactions.map { it.parsedDate },
+                    currentMonth = YearMonth.now()
+                ),
+            currentMonth = YearMonth.now(),
+            onMonthSelected = {},
             onRefresh = {},
             onRetry = {},
             onOpenFilters = {},

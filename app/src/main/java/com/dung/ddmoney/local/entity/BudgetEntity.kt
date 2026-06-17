@@ -10,7 +10,11 @@ data class BudgetEntity(
     val name: String,
     val amount: Double,
     val month: Int,
-    val year: Int
+    val year: Int,
+    val periodType: String = "MONTH",
+    val startDate: String? = null,
+    val endDate: String? = null,
+    val walletId: Long? = null
 )
 
 @Entity(tableName = "budget_categories", primaryKeys = ["budgetId", "categoryId"])

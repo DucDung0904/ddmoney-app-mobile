@@ -6,8 +6,9 @@ import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
+import androidx.credentials.exceptions.NoCredentialException
 import com.dung.ddmoney.util.Constants
-import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import kotlinx.coroutines.CancellationException
 
@@ -16,10 +17,9 @@ class GoogleSignInManager(private val context: Context) {
 
     suspend fun signIn(): Result<String> {
         return try {
-            val googleIdOption = GetGoogleIdOption.Builder()
-                .setFilterByAuthorizedAccounts(false)
-                .setServerClientId(Constants.WEB_CLIENT_ID)
-                .setAutoSelectEnabled(false)
+            val googleIdOption = GetSignInWithGoogleOption.Builder(
+                Constants.WEB_CLIENT_ID
+            )
                 .build()
 
             val request = GetCredentialRequest.Builder()
@@ -43,6 +43,11 @@ class GoogleSignInManager(private val context: Context) {
             }
         } catch (e: GetCredentialCancellationException) {
             Result.failure(Exception("Đăng nhập Google bị hủy."))
+        } catch (e: NoCredentialException) {
+            Log.e("GoogleSignIn", "No Google credential available", e)
+            Result.failure(
+                Exception("Không tìm thấy tài khoản Google. Hãy thêm tài khoản Google vào thiết bị.")
+            )
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

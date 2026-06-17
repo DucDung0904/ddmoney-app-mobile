@@ -67,20 +67,6 @@ class WalletRepository(
         response
     }
 
-    /**
-     * Safe delete: API deletes on server, locally we archive
-     * to preserve transaction history references.
-     */
-    suspend fun delete(id: Long): Result<Unit> = safeCall {
-        val entity = dao.getByServerId(id)
-        if (entity?.isDefault == true) {
-            throw IllegalStateException("Ví mặc định không thể lưu trữ")
-        }
-        api.deleteWallet(id)
-        if (entity != null) {
-            dao.archive(entity.id)
-        }
-    }
 
     suspend fun transfer(fromId: Long, toId: Long, amount: Double, note: String? = null): Result<Unit> =
         safeCall {

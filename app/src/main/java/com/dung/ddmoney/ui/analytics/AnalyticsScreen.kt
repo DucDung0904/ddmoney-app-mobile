@@ -352,9 +352,7 @@ private fun SpendingDeltaBadge(report: ExpenseReport) {
     val valueText =
             when {
                 !report.hasPreviousPeriodData -> "Chưa có"
-                isHigher -> "+${compactMoney(difference)}"
-                isLower -> "-${compactMoney(-difference)}"
-                else -> "0"
+                else -> formatPercentageChange(report.differencePercentage)
             }
     val label =
             if (report.hasPreviousPeriodData) {

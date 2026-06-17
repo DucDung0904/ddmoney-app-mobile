@@ -12,6 +12,7 @@ import com.dung.ddmoney.network.dto.AuthRequest
 import com.dung.ddmoney.network.dto.RegisterRequest
 import com.dung.ddmoney.repository.AuthRepository
 import com.dung.ddmoney.repository.BudgetDisplayModel
+import com.dung.ddmoney.repository.BudgetPeriod
 import com.dung.ddmoney.repository.BudgetRepository
 import com.dung.ddmoney.repository.CategoryRepository
 import com.dung.ddmoney.repository.TransactionRepository
@@ -22,6 +23,7 @@ import java.time.LocalDate
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 
 // ─── App State ────────────────────────────────────────────────────────
 data class UserInfo(val name: String = "", val email: String = "", val avatarUrl: String = "")
@@ -150,10 +152,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                                 categoryRepo.observeAll(userId)
                             },
                             transactionRepo.observeAll(),
-                            budgetRepo.getBudgetsWithCalculatedSpent(
-                                    LocalDate.now().monthValue,
-                                    LocalDate.now().year
-                            ),
+                            budgetRepo.getBudgetsWithCalculatedSpent(),
                             _userInfo,
                             _isLoading,
                             _error
@@ -224,30 +223,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                                         avatarUrl = tokenManager.getUserAvatar()
                                 )
 
-                        var isNewUser = false
-                        try {
-                            val token = tokenManager.getToken()
-                            if (token != null) {
-                                val split = token.split(".")
-                                if (split.size >= 2) {
-                                    val payload =
-                                            String(
-                                                    android.util.Base64.decode(
-                                                            split[1],
-                                                            android.util.Base64.URL_SAFE
-                                                    )
-                                            )
-                                    val jsonObject = org.json.JSONObject(payload)
-                                    if (jsonObject.has("new")) {
-                                        isNewUser = jsonObject.getBoolean("new")
-                                    } else if (jsonObject.has("isNew")) {
-                                        isNewUser = jsonObject.getBoolean("isNew")
-                                    }
-                                }
-                            }
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
+                        val isNewUser = tokenManager.isNewUserFromToken()
 
                         if (!isNewUser) {
                             tokenManager.setOnboardingDone(true)
@@ -301,30 +277,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                                         avatarUrl = tokenManager.getUserAvatar()
                                 )
 
-                        var isNewUser = false
-                        try {
-                            val token = tokenManager.getToken()
-                            if (token != null) {
-                                val split = token.split(".")
-                                if (split.size >= 2) {
-                                    val payload =
-                                            String(
-                                                    android.util.Base64.decode(
-                                                            split[1],
-                                                            android.util.Base64.URL_SAFE
-                                                    )
-                                            )
-                                    val jsonObject = org.json.JSONObject(payload)
-                                    if (jsonObject.has("new")) {
-                                        isNewUser = jsonObject.getBoolean("new")
-                                    } else if (jsonObject.has("isNew")) {
-                                        isNewUser = jsonObject.getBoolean("isNew")
-                                    }
-                                }
-                            }
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
+                        val isNewUser = tokenManager.isNewUserFromToken()
 
                         if (!isNewUser) {
                             tokenManager.setOnboardingDone(true)
@@ -418,16 +371,21 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // ── Budget Actions ──────────────────────────────────────────────────
-    fun createBudget(name: String, amount: Double, month: Int, year: Int, categoryIds: List<Long>) {
+    fun createBudget(
+            name: String,
+            amount: Double,
+            period: BudgetPeriod,
+            walletId: Long?,
+            categoryIds: List<Long>
+    ) {
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
             try {
-                budgetRepo.createBudget(0L, name, amount, month, year, categoryIds)
+                budgetRepo.createBudget(0L, name, amount, period, walletId, categoryIds)
                 syncAll()
             } catch (e: retrofit2.HttpException) {
-                val errorBody = e.response()?.errorBody()?.string()
-                _error.value = "Lỗi server (400): $errorBody"
+                _error.value = readServerError(e, "Không thể tạo ngân sách")
             } catch (e: Exception) {
                 _error.value = "Không thể tạo ngân sách: ${e.message}"
             } finally {
@@ -440,16 +398,26 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             budgetId: String,
             name: String,
             amount: Double,
-            month: Int,
-            year: Int,
+            period: BudgetPeriod,
+            walletId: Long?,
             categoryIds: List<Long>
     ) {
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
             try {
-                budgetRepo.updateBudget(budgetId, 0L, name, amount, month, year, categoryIds)
+                budgetRepo.updateBudget(
+                        budgetId,
+                        0L,
+                        name,
+                        amount,
+                        period,
+                        walletId,
+                        categoryIds
+                )
                 syncAll()
+            } catch (e: retrofit2.HttpException) {
+                _error.value = readServerError(e, "Không thể cập nhật ngân sách")
             } catch (e: Exception) {
                 _error.value = "Không thể cập nhật ngân sách: ${e.message}"
             } finally {
@@ -480,11 +448,15 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             _error.value = null
             try {
                 val syncResults =
-                        listOf(walletRepo.sync(), transactionRepo.sync(), categoryRepo.sync())
+                        listOf(
+                                walletRepo.sync(),
+                                transactionRepo.sync(),
+                                categoryRepo.sync(),
+                                budgetRepo.sync()
+                        )
                 syncResults.firstOrNull { it.isFailure }?.exceptionOrNull()?.let { error ->
                     _error.value = "Không thể đồng bộ toàn bộ dữ liệu: ${error.message}"
                 }
-                budgetRepo.sync()
             } catch (e: Exception) {
                 _error.value = "Không thể kết nối tới server: ${e.message}"
             } finally {
@@ -502,6 +474,18 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setError(message: String) {
         _error.value = message
+    }
+
+    private fun readServerError(
+            error: retrofit2.HttpException,
+            fallback: String
+    ): String {
+        val body = error.response()?.errorBody()?.string().orEmpty()
+        val message =
+                runCatching { JSONObject(body).optString("error") }
+                        .getOrNull()
+                        ?.takeIf { it.isNotBlank() }
+        return message ?: "$fallback (HTTP ${error.code()})"
     }
 
     // ── User / Avatar ──────────────────────────────────────────────────
@@ -576,13 +560,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun archiveWallet(serverId: Long) {
-        viewModelScope.launch {
-            walletRepo.delete(serverId).onSuccess { syncAll() }.onFailure { e ->
-                _error.value = "Không thể xóa ví: ${e.message}"
-            }
-        }
-    }
 
     fun archiveWallet(walletId: String, onComplete: () -> Unit = {}) {
         viewModelScope.launch {

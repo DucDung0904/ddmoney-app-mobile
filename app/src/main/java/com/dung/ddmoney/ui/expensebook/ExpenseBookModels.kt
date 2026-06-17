@@ -10,11 +10,9 @@ enum class ExpenseBookTransactionType(val label: String) {
     TRANSFER("Chuyển ví")
 }
 
-enum class ExpenseBookPeriod(val label: String) {
-    TODAY("Hôm nay"),
-    WEEK("Tuần này"),
-    MONTH("Tháng này"),
-    CUSTOM("Tùy chỉnh")
+enum class ExpenseBookPeriod {
+    MONTH,
+    CUSTOM
 }
 
 data class ExpenseBookSummary(
