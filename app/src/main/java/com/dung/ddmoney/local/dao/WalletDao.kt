@@ -28,6 +28,10 @@ interface WalletDao {
     @Query("SELECT * FROM wallets WHERE serverId = :serverId LIMIT 1")
     suspend fun getByServerId(serverId: Long): WalletEntity?
 
+    /** Lấy tất cả wallet chưa đồng bộ với server */
+    @Query("SELECT * FROM wallets WHERE syncStatus != 'SYNCED'")
+    suspend fun getPendingWallets(): List<WalletEntity>
+
     // ─── Default wallet logic ────────────────────────────────────────────
 
     /** Get the current default wallet */
@@ -79,6 +83,9 @@ interface WalletDao {
 
     @Query("DELETE FROM wallets WHERE serverId = :serverId")
     suspend fun deleteByServerId(serverId: Long)
+
+    @Query("DELETE FROM wallets WHERE id = :localId")
+    suspend fun deleteByLocalId(localId: String)
 
     @Query("DELETE FROM wallets")
     suspend fun deleteAll()

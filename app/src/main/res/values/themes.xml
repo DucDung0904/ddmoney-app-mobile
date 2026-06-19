@@ -1,5 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
+    <!-- Theme chính của ứng dụng (dùng cho MainActivity) -->
     <style name="Theme.DDMoney" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <!--
+        Theme Splash Screen – kế thừa Theme.SplashScreen từ thư viện
+        androidx.core:core-splashscreen. Đây là cách HIỆN ĐẠI và được
+        Google khuyến nghị (Android 12+ backport về API 26).
+    -->
+    <style name="Theme.DDMoney.Splash" parent="Theme.SplashScreen">
+
+        <!-- Màu nền của splash screen: Primary Blue (#3B82F6) -->
+        <item name="windowSplashScreenBackground">#3B82F6</item>
+
+        <!--
+            Icon hiển thị ở giữa màn hình.
+            Kích thước khuyến nghị: 288x288 dp (adaptive icon size = 108 dp).
+            File logo_appdd.png nằm trong res/drawable/.
+        -->
+        <item name="windowSplashScreenAnimatedIcon">@drawable/logo_appdd</item>
+
+        <!--
+            Thời gian tối đa hiển thị animated icon (đơn vị: ms).
+            Nếu dùng AnimatedVectorDrawable thì set ở đây.
+            Với static PNG, tham số này không có hiệu lực.
+        -->
+        <item name="windowSplashScreenAnimationDuration">1000</item>
+
+        <!--
+            Theme sẽ được áp dụng SAU KHI splash screen kết thúc.
+            Bắt buộc phải set để tránh lỗi giao diện.
+        -->
+        <item name="postSplashScreenTheme">@style/Theme.DDMoney</item>
+
+    </style>
+
 </resources>

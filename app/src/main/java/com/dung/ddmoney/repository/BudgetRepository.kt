@@ -1,7 +1,11 @@
 
 package com.dung.ddmoney.repository
 
+import android.content.Context
+import com.dung.ddmoney.local.SyncStatus
+import com.dung.ddmoney.local.SyncWorker
 import com.dung.ddmoney.local.dao.BudgetDao
+import com.dung.ddmoney.local.dao.CategoryDao
 import com.dung.ddmoney.local.dao.TransactionDao
 import com.dung.ddmoney.local.entity.BudgetCategoryEntity
 import com.dung.ddmoney.local.entity.BudgetEntity
@@ -10,6 +14,7 @@ import com.dung.ddmoney.network.dto.BudgetRequest
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import java.time.LocalDate
+import java.util.UUID
 
 data class BudgetDisplayModel(
     val id: String,
@@ -40,7 +45,7 @@ class BudgetRepository(
     private val api: ApiService,
     private val budgetDao: BudgetDao,
     private val transactionDao: TransactionDao,
-    private val categoryDao: com.dung.ddmoney.local.dao.CategoryDao
+    private val categoryDao: CategoryDao
 ) {
     /**
      * Lấy danh sách ngân sách kèm theo số tiền đã chi tiêu được tính toán từ các giao dịch.
@@ -53,7 +58,8 @@ class BudgetRepository(
         val allCategoriesFlow = categoryDao.observeAll()
 
         return combine(budgetsFlow, transactionsFlow, allCategoriesFlow) { budgets, transactions, allCats ->
-            budgets.map { budgetWithCats ->
+            // Lọc bỏ budget chờ xóa khỏi UI
+            budgets.filter { it.budget.syncStatus != SyncStatus.PENDING_DELETE }.map { budgetWithCats ->
                 val budgetEntity = budgetWithCats.budget
                 val period =
                     BudgetPeriod.fromStorage(
@@ -105,13 +111,23 @@ class BudgetRepository(
         }
     }
 
+    /**
+     * Pull toàn bộ budget từ server → ghi đè Room.
+     * Chỉ xóa budget đã SYNCED; giữ lại bản pending chưa được đẩy lên.
+     */
     suspend fun sync(): Result<Unit> =
         safeCall {
-            val localMetadata = budgetDao.getAllBudgets().associateBy { it.id }
             val response = api.getCurrentBudgets()
-            budgetDao.deleteAllCategories()
-            budgetDao.deleteAll()
-            
+
+            // Chỉ xóa các budget đã synced, giữ lại pending
+            val pending = budgetDao.getPendingBudgets().map { it.id }.toSet()
+            val localMetadata = budgetDao.getAllBudgets().associateBy { it.id }
+
+            // Xóa categories của budget đã synced trước
+            localMetadata.keys
+                .filter { it !in pending }
+                .forEach { budgetDao.deleteBudgetCategories(it) }
+
             response.forEach { apiBudget ->
                 val budgetId = apiBudget.id.toString()
                 val existing = localMetadata[budgetId]
@@ -125,19 +141,23 @@ class BudgetRepository(
                     )
                 val budget = BudgetEntity(
                     id = budgetId,
-                    userId = 0L, // Assuming it's handled server side
+                    serverId = apiBudget.id,
+                    userId = existing?.userId ?: 0L,
                     name = apiBudget.name,
-                    amount = apiBudget.budgetAmount,
+                    amount = apiBudget.amount,
                     month = apiBudget.month,
                     year = apiBudget.year,
                     periodType = period.type.name,
                     startDate = period.startDate.toString(),
                     endDate = period.endDate.toString(),
-                    walletId = apiBudget.walletId ?: existing?.walletId
+                    walletId = apiBudget.walletId ?: existing?.walletId,
+                    syncStatus = SyncStatus.SYNCED
                 )
-                budgetDao.insertBudget(budget)
+                budgetDao.upsertBudget(budget)
                 
-                val budgetCategories = apiBudget.categories.map { 
+                val budgetCategories = apiBudget.categoryIds?.map {
+                    BudgetCategoryEntity(budgetId = budgetId, categoryId = it)
+                } ?: apiBudget.categories.map { 
                     BudgetCategoryEntity(budgetId = budgetId, categoryId = it.id) 
                 }
                 budgetDao.insertBudgetCategories(budgetCategories)
@@ -145,7 +165,13 @@ class BudgetRepository(
             Unit
         }
 
+    /**
+     * Tạo budget mới theo kiểu offline-first:
+     * 1. Ghi local với UUID + PENDING_INSERT
+     * 2. Trigger SyncWorker để đẩy lên server
+     */
     suspend fun createBudget(
+        context: Context,
         userId: Long,
         name: String,
         amount: Double,
@@ -153,23 +179,10 @@ class BudgetRepository(
         walletId: Long?,
         categoryIds: List<Long>
     ) {
-        val req = BudgetRequest(
-            name = name,
-            categoryIds = categoryIds,
-            amount = amount,
-            month = period.month,
-            year = period.year,
-            periodType = period.type.name,
-            startDate = period.startDate.toString(),
-            endDate = period.endDate.toString(),
-            walletId = walletId,
-            walletScope = if (walletId == null) "ALL_WALLETS" else "ONE_WALLET"
-        )
-        val response = api.createBudget(req)
-        
-        val budgetId = response.id.toString()
+        val localId = UUID.randomUUID().toString()
         val budget = BudgetEntity(
-            id = budgetId,
+            id = localId,
+            serverId = null,
             userId = userId,
             name = name,
             amount = amount,
@@ -178,18 +191,25 @@ class BudgetRepository(
             periodType = period.type.name,
             startDate = period.startDate.toString(),
             endDate = period.endDate.toString(),
-            walletId = walletId
+            walletId = walletId,
+            syncStatus = SyncStatus.PENDING_INSERT
         )
-        budgetDao.insertBudget(budget)
-        
+        budgetDao.upsertBudget(budget)
         budgetDao.insertBudgetCategories(
             categoryIds.distinct().map {
-                BudgetCategoryEntity(budgetId = budgetId, categoryId = it)
+                BudgetCategoryEntity(budgetId = localId, categoryId = it)
             }
         )
+        SyncWorker.enqueue(context)
     }
 
+    /**
+     * Cập nhật budget theo offline-first:
+     * 1. Ghi local với PENDING_UPDATE (nếu đã có serverId) hoặc giữ PENDING_INSERT
+     * 2. Trigger SyncWorker
+     */
     suspend fun updateBudget(
+        context: Context,
         budgetId: String,
         userId: Long,
         name: String,
@@ -198,22 +218,15 @@ class BudgetRepository(
         walletId: Long?,
         categoryIds: List<Long>
     ) {
-        val req = BudgetRequest(
-            name = name,
-            categoryIds = categoryIds,
-            amount = amount,
-            month = period.month,
-            year = period.year,
-            periodType = period.type.name,
-            startDate = period.startDate.toString(),
-            endDate = period.endDate.toString(),
-            walletId = walletId,
-            walletScope = if (walletId == null) "ALL_WALLETS" else "ONE_WALLET"
-        )
-        api.updateBudget(budgetId.toLong(), req)
-        
+        val existing = budgetDao.getAllBudgets().find { it.id == budgetId }
+        // Nếu đang PENDING_INSERT thì giữ nguyên status (chưa lên server nên không cần UPDATE)
+        val newStatus = when (existing?.syncStatus) {
+            SyncStatus.PENDING_INSERT -> SyncStatus.PENDING_INSERT
+            else -> SyncStatus.PENDING_UPDATE
+        }
         val budget = BudgetEntity(
             id = budgetId,
+            serverId = existing?.serverId,
             userId = userId,
             name = name,
             amount = amount,
@@ -222,21 +235,34 @@ class BudgetRepository(
             periodType = period.type.name,
             startDate = period.startDate.toString(),
             endDate = period.endDate.toString(),
-            walletId = walletId
+            walletId = walletId,
+            syncStatus = newStatus
         )
-        budgetDao.insertBudget(budget)
-        
+        budgetDao.upsertBudget(budget)
         budgetDao.deleteBudgetCategories(budgetId)
         budgetDao.insertBudgetCategories(
             categoryIds.distinct().map {
                 BudgetCategoryEntity(budgetId = budgetId, categoryId = it)
             }
         )
+        SyncWorker.enqueue(context)
     }
 
-    suspend fun deleteBudget(budgetId: String) {
-        api.deleteBudget(budgetId.toLong())
-        budgetDao.deleteBudgetCategories(budgetId)
-        budgetDao.deleteBudget(budgetId)
+    /**
+     * Xóa budget theo offline-first:
+     * - Nếu chưa có serverId (PENDING_INSERT): xóa thẳng khỏi local (chưa lên server)
+     * - Nếu đã có serverId: đánh PENDING_DELETE, để Worker xóa trên server
+     */
+    suspend fun deleteBudget(context: Context, budgetId: String) {
+        val existing = budgetDao.getAllBudgets().find { it.id == budgetId }
+        if (existing?.serverId == null) {
+            // Chưa lên server → xóa thẳng local
+            budgetDao.deleteBudgetCategories(budgetId)
+            budgetDao.deleteBudget(budgetId)
+        } else {
+            // Đã có trên server → đánh pending, worker sẽ xóa
+            budgetDao.updateSyncStatus(budgetId, SyncStatus.PENDING_DELETE)
+            SyncWorker.enqueue(context)
+        }
     }
 }

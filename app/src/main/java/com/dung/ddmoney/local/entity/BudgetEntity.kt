@@ -1,11 +1,13 @@
 package com.dung.ddmoney.local.entity
 
 import androidx.room.*
+import com.dung.ddmoney.local.SyncStatus
 
 @Entity(tableName = "budgets")
 data class BudgetEntity(
     @PrimaryKey
     val id: String,
+    val serverId: Long? = null,         // ID từ server (null khi chưa sync)
     val userId: Long,
     val name: String,
     val amount: Double,
@@ -14,7 +16,9 @@ data class BudgetEntity(
     val periodType: String = "MONTH",
     val startDate: String? = null,
     val endDate: String? = null,
-    val walletId: Long? = null
+    val walletId: Long? = null,
+    val syncStatus: SyncStatus = SyncStatus.SYNCED,
+    val updatedAt: Long = System.currentTimeMillis()
 )
 
 @Entity(tableName = "budget_categories", primaryKeys = ["budgetId", "categoryId"])

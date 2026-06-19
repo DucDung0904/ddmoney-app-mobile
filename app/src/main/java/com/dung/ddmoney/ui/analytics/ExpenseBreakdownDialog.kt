@@ -23,12 +23,12 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -41,6 +41,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Close
@@ -176,7 +179,7 @@ fun ExpenseBreakdownDialog(report: ExpenseReport, onDismiss: () -> Unit) {
                             dismissOnClickOutside = true
                     )
     ) {
-        Box(
+        BoxWithConstraints(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.BottomCenter
         ) {
@@ -204,7 +207,7 @@ fun ExpenseBreakdownDialog(report: ExpenseReport, onDismiss: () -> Unit) {
                 Surface(
                         modifier =
                                 Modifier.fillMaxWidth()
-                                        .fillMaxHeight(0.95f)
+                                        .heightIn(max = maxHeight * 0.95f)
                                         .offset {
                                             IntOffset(
                                                     x = 0,
@@ -226,8 +229,9 @@ fun ExpenseBreakdownDialog(report: ExpenseReport, onDismiss: () -> Unit) {
                 ) {
                     Column(
                             modifier =
-                                    Modifier.fillMaxSize()
+                                    Modifier.fillMaxWidth()
                                             .padding(top = 10.dp, bottom = 20.dp)
+                                            .windowInsetsPadding(WindowInsets.navigationBars)
                                             .verticalScroll(scrollState)
                     ) {
                         ExpenseBreakdownHeader(
@@ -521,7 +525,8 @@ private fun DonutBreakdownChart(
             visibleCategories.forEachIndexed { index, category ->
                 val normPct  = category.percentage * normalizeFactor
                 val sweep    = normPct.coerceIn(0f, 1f) * 360f * animatedProgress
-                val gapSweep = if (sweep > 2f) sweep - 1.5f else sweep  // small white gap
+                // Only add white-gap between segments when there is more than one segment
+                val gapSweep = if (sweep > 2f && visibleCategories.size > 1) sweep - 1.5f else sweep
 
                 val liftProgress = segmentLiftAnimations[index].value
                 val alpha        = segmentAlphaAnimations[index].value
@@ -626,7 +631,14 @@ private fun DonutBreakdownChart(
         visibleCategories.forEachIndexed { index, category ->
             val normPct   = category.percentage * normalizeFactor
             val sweep     = normPct.coerceIn(0f, 1f) * 360f
-            val midAngle  = Math.toRadians((badgeStart + sweep / 2f).toDouble())
+            // When only one category fills the entire ring, anchor the badge at the top (-90°)
+            // instead of its geometric midpoint (which would be at the bottom, 90°).
+            val badgeAngleDeg = if (visibleCategories.size == 1) {
+                -90f + rotationDegrees
+            } else {
+                badgeStart + sweep / 2f
+            }
+            val midAngle  = Math.toRadians(badgeAngleDeg.toDouble())
 
             val liftProgress  = segmentLiftAnimations[index].value
             val totalRadiusPx =

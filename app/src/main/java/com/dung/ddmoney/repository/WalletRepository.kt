@@ -1,6 +1,10 @@
 package com.dung.ddmoney.repository
 
+import android.content.Context
+import com.dung.ddmoney.local.SyncStatus
+import com.dung.ddmoney.local.SyncWorker
 import com.dung.ddmoney.local.dao.WalletDao
+import com.dung.ddmoney.local.entity.WalletEntity
 import com.dung.ddmoney.local.toEntity
 import com.dung.ddmoney.local.toModel
 import com.dung.ddmoney.network.ApiService
@@ -11,6 +15,7 @@ import com.dung.ddmoney.ui.dashboard.model.Wallet
 import com.dung.ddmoney.ui.dashboard.model.WalletType
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import java.util.UUID
 
 class WalletRepository(
     private val api: ApiService,
@@ -36,6 +41,96 @@ class WalletRepository(
         dao.upsertAll(remote.map { it.toEntity() })
         // Auto-set first wallet as default if none is marked
         ensureDefaultWallet()
+    }
+
+    // ─── Offline-first CRUD ──────────────────────────────────────────────
+
+    /**
+     * Tạo ví theo offline-first:
+     * 1. Lưu local với UUID + PENDING_INSERT ngay lập tức
+     * 2. Trigger SyncWorker để đẩy lên server khi có mạng
+     */
+    suspend fun createOfflineFirst(context: Context, req: WalletRequest): Result<Unit> = safeCall {
+        val isFirstWallet = dao.getAll().isEmpty()
+        val guardedReq = req.normalizedForWalletType(isDefaultWallet = req.isDefault || isFirstWallet)
+        val localId = UUID.randomUUID().toString()
+        val entity = WalletEntity(
+            id = localId,
+            serverId = null,
+            name = guardedReq.name,
+            balance = guardedReq.balance,
+            type = guardedReq.type,
+            bankName = guardedReq.bankName,
+            cardNumber = guardedReq.cardNumber,
+            icon = guardedReq.icon,
+            currency = guardedReq.currency,
+            isDefault = guardedReq.isDefault,
+            isActive = true,
+            isArchived = false,
+            isIncludedInTotal = guardedReq.isIncludedInTotal,
+            sortOrder = guardedReq.sortOrder,
+            creditLimit = guardedReq.creditLimit,
+            currentDebt = guardedReq.currentDebt,
+            billingDay = guardedReq.billingDay,
+            paymentDueDay = guardedReq.paymentDueDay,
+            targetAmount = guardedReq.targetAmount,
+            targetDate = guardedReq.targetDate,
+            syncStatus = SyncStatus.PENDING_INSERT
+        )
+        if (guardedReq.isDefault || isFirstWallet) {
+            dao.clearAllDefaults()
+        }
+        dao.upsert(entity)
+        if (guardedReq.isDefault || isFirstWallet) {
+            dao.setDefault(localId)
+        }
+        SyncWorker.enqueue(context)
+    }
+
+    /**
+     * Cập nhật ví theo offline-first:
+     * 1. Cập nhật local với PENDING_UPDATE ngay (nếu đã có serverId) hoặc giữ PENDING_INSERT
+     * 2. Trigger SyncWorker
+     * walletId có thể là UUID (local) hoặc numeric string (serverId)
+     */
+    suspend fun updateOfflineFirst(context: Context, walletId: String, req: WalletRequest): Result<Unit> = safeCall {
+        val current = dao.getById(walletId)
+            ?: walletId.toLongOrNull()?.let { dao.getByServerId(it) }
+            ?: throw IllegalArgumentException("Không tìm thấy ví: $walletId")
+        val guardedReq = req.normalizedForWalletType(isDefaultWallet = current.isDefault || req.isDefault)
+        val newStatus = when (current.syncStatus) {
+            SyncStatus.PENDING_INSERT -> SyncStatus.PENDING_INSERT  // Chưa lên server → giữ INSERT
+            else -> SyncStatus.PENDING_UPDATE
+        }
+        val updated = current.copy(
+            name = guardedReq.name,
+            balance = guardedReq.balance,
+            type = guardedReq.type,
+            bankName = guardedReq.bankName,
+            cardNumber = guardedReq.cardNumber,
+            icon = guardedReq.icon,
+            currency = guardedReq.currency,
+            isDefault = guardedReq.isDefault,
+            isIncludedInTotal = guardedReq.isIncludedInTotal,
+            sortOrder = guardedReq.sortOrder,
+            creditLimit = guardedReq.creditLimit,
+            currentDebt = guardedReq.currentDebt,
+            billingDay = guardedReq.billingDay,
+            paymentDueDay = guardedReq.paymentDueDay,
+            targetAmount = guardedReq.targetAmount,
+            targetDate = guardedReq.targetDate,
+            syncStatus = newStatus,
+            updatedAt = System.currentTimeMillis()
+        )
+        if (guardedReq.isDefault) {
+            dao.clearAllDefaults()
+        }
+        dao.upsert(updated)
+        if (guardedReq.isDefault) {
+            dao.setDefault(current.id)
+        }
+        ensureDefaultWallet()
+        SyncWorker.enqueue(context)
     }
 
     // ─── CRUD ────────────────────────────────────────────────────────────

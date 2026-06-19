@@ -104,14 +104,16 @@ fun AnalyticsScreen(
                 )
             }
 
-            item {
-                TopSpendingHeader(
-                        categoryCount = report.topCategories.size,
-                        onClick = { showBreakdown = true }
-                )
+            if (report.hasCurrentPeriodData) {
+                item {
+                    TopSpendingHeader(
+                            categoryCount = report.topCategories.size,
+                            onClick = { showBreakdown = true }
+                    )
+                }
             }
 
-            if (report.topCategories.isEmpty()) {
+            if (!report.hasCurrentPeriodData || report.topCategories.isEmpty()) {
                 item { EmptyReportState() }
             } else {
                 items(report.topCategories.take(8), key = { it.id }) { category ->
@@ -205,31 +207,35 @@ private fun AnalyticsSummaryCard(
                     Text(text = report.summaryLabel, fontSize = 13.sp, color = NeutralGray600)
                 }
 
-                SpendingDeltaBadge(report = report)
+                if (report.hasComparisonContext) {
+                    SpendingDeltaBadge(report = report)
+                }
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
+            if (report.hasCurrentPeriodData) {
+                Spacer(modifier = Modifier.height(18.dp))
 
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                MetricPill(
-                        label = report.previousLabel,
-                        value = previousPeriodValue(report),
-                        modifier = Modifier.weight(1f)
-                )
-                MetricPill(
-                        label = differenceLabel(report),
-                        value = differenceValue(report),
-                        modifier = Modifier.weight(1f),
-                        valueColor = differenceColor(report)
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    MetricPill(
+                            label = report.previousLabel,
+                            value = previousPeriodValue(report),
+                            modifier = Modifier.weight(1f)
+                    )
+                    MetricPill(
+                            label = differenceLabel(report),
+                            value = differenceValue(report),
+                            modifier = Modifier.weight(1f),
+                            valueColor = differenceColor(report)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                ExpenseComparisonChart(
+                        report = report,
+                        modifier = Modifier.fillMaxWidth().height(210.dp)
                 )
             }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            ExpenseComparisonChart(
-                    report = report,
-                    modifier = Modifier.fillMaxWidth().height(210.dp)
-            )
         }
     }
 }
@@ -349,17 +355,8 @@ private fun SpendingDeltaBadge(report: ExpenseReport) {
                 isLower -> SavingsTeal50
                 else -> NeutralGray50
             }
-    val valueText =
-            when {
-                !report.hasPreviousPeriodData -> "Chưa có"
-                else -> formatPercentageChange(report.differencePercentage)
-            }
-    val label =
-            if (report.hasPreviousPeriodData) {
-                "so với ${report.previousLabel.lowercase()}"
-            } else {
-                "dữ liệu ${report.previousLabel.lowercase()}"
-            }
+    val valueText = spendingDeltaAmountText(report)
+    val label = spendingDeltaContextLabel(report)
 
     Column(
             modifier =

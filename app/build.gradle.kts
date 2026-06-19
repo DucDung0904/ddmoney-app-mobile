@@ -67,7 +67,8 @@ dependencies {
     implementation("androidx.room:room-ktx:$roomVersion")
     ksp("androidx.room:room-compiler:$roomVersion")
 
-
+    // Splash Screen API (Android 12 backport to API 26+)
+    implementation("androidx.core:core-splashscreen:1.0.1")
 
     // WorkManager (Background Sync)
     implementation("androidx.work:work-runtime-ktx:2.9.0")

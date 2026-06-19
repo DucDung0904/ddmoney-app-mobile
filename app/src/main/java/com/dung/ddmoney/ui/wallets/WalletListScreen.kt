@@ -2,7 +2,6 @@ package com.dung.ddmoney.ui.wallets
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -23,6 +22,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -32,7 +33,8 @@ import com.dung.ddmoney.ui.dashboard.model.*
 import com.dung.ddmoney.ui.theme.*
 import com.dung.ddmoney.ui.components.formatMoneyDisplay
 
-private val WALLET_ICON_BOX_SIZE = 38.dp
+private val WALLET_ICON_BOX_SIZE = 42.dp
+private val CARD_RADIUS = 20.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,14 +53,14 @@ fun WalletListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { 
+                title = {
                     Text(
                         text = "Ví của tôi",
-                        fontSize = 18.sp, 
+                        fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = LuminousOnSurface,
-                        modifier = Modifier.padding(start = 8.dp)
-                    ) 
+                        modifier = Modifier.padding(start = 4.dp)
+                    )
                 },
                 navigationIcon = {
                     LiquidIconButton(
@@ -87,7 +89,7 @@ fun WalletListScreen(
                 .fillMaxSize()
                 .padding(padding),
             contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 120.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item {
                 TotalBalanceSummaryCard(activeWallets.filter { it.isIncludedInTotal }.sumOf { it.balance })
@@ -162,7 +164,7 @@ fun WalletListScreen(
                     )
                 }
             }
-            
+
             item { Spacer(modifier = Modifier.height(80.dp)) }
         }
     }
@@ -177,17 +179,16 @@ private fun ActiveWalletSectionBox(
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(6.dp),
+        shape = RoundedCornerShape(CARD_RADIUS),
         color = LuminousSurfaceContainerLowest,
-        border = BorderStroke(1.dp, LuminousOutlineVariant.copy(alpha = 0.32f)),
-        shadowElevation = 1.dp
+        shadowElevation = 2.dp
     ) {
         if (includedWallets.isEmpty() && excludedWallets.isEmpty()) {
             Text(
                 text = emptyText,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 18.dp, vertical = 18.dp),
+                    .padding(horizontal = 20.dp, vertical = 20.dp),
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = LuminousOnSurfaceVariant
@@ -203,9 +204,9 @@ private fun ActiveWalletSectionBox(
                 )
 
                 HorizontalDivider(
-                    modifier = Modifier.padding(start = 18.dp, end = 18.dp),
-                    thickness = 1.dp,
-                    color = LuminousOutlineVariant.copy(alpha = 0.55f)
+                    modifier = Modifier.padding(horizontal = 20.dp),
+                    thickness = 0.5.dp,
+                    color = LuminousSurfaceContainerLow
                 )
 
                 WalletGroup(
@@ -236,7 +237,7 @@ private fun WalletGroup(
                 text = emptyText,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 18.dp, end = 18.dp, bottom = 14.dp),
+                    .padding(start = 20.dp, end = 20.dp, bottom = 16.dp),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,
                 color = LuminousOnSurfaceVariant
@@ -246,9 +247,9 @@ private fun WalletGroup(
                 WalletDetailItem(wallet = wallet, onClick = { onWalletClick(wallet) })
                 if (index < wallets.lastIndex) {
                     HorizontalDivider(
-                        modifier = Modifier.padding(start = 68.dp, end = 18.dp),
-                        thickness = 1.dp,
-                        color = LuminousOutlineVariant.copy(alpha = 0.55f)
+                        modifier = Modifier.padding(start = 72.dp, end = 20.dp),
+                        thickness = 0.5.dp,
+                        color = LuminousSurfaceContainerLow
                     )
                 }
             }
@@ -261,22 +262,30 @@ private fun WalletGroupHeader(title: String, count: Int) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 18.dp, end = 18.dp, top = 14.dp, bottom = 4.dp),
+            .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 6.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = title,
-            fontSize = 12.sp,
+            fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
-            color = LuminousOnSurfaceVariant
+            color = NeutralGray400,
+            letterSpacing = 0.5.sp
         )
-        Text(
-            text = "$count ví",
-            fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = LuminousOnSurfaceVariant
-        )
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(50))
+                .background(OceanBlue50)
+                .padding(horizontal = 8.dp, vertical = 2.dp)
+        ) {
+            Text(
+                text = "$count ví",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = OceanBlue600
+            )
+        }
     }
 }
 
@@ -288,17 +297,16 @@ private fun WalletSectionBox(
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(6.dp),
+        shape = RoundedCornerShape(CARD_RADIUS),
         color = LuminousSurfaceContainerLowest,
-        border = BorderStroke(1.dp, LuminousOutlineVariant.copy(alpha = 0.32f)),
-        shadowElevation = 1.dp
+        shadowElevation = 2.dp
     ) {
         if (wallets.isEmpty()) {
             Text(
                 text = emptyText,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 18.dp, vertical = 18.dp),
+                    .padding(horizontal = 20.dp, vertical = 20.dp),
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = LuminousOnSurfaceVariant
@@ -309,9 +317,9 @@ private fun WalletSectionBox(
                     itemContent(wallet)
                     if (index < wallets.lastIndex) {
                         HorizontalDivider(
-                            modifier = Modifier.padding(start = 68.dp, end = 18.dp),
-                            thickness = 1.dp,
-                            color = LuminousOutlineVariant.copy(alpha = 0.55f)
+                            modifier = Modifier.padding(start = 72.dp, end = 20.dp),
+                            thickness = 0.5.dp,
+                            color = LuminousSurfaceContainerLow
                         )
                     }
                 }
@@ -329,8 +337,7 @@ fun LiquidIconButton(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
-    
-    // Hiệu ứng Liquid - Co giãn mượt mà khi nhấn
+
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.85f else 1f,
         animationSpec = tween(durationMillis = 160),
@@ -347,7 +354,7 @@ fun LiquidIconButton(
             .clickable(
                 interactionSource = interactionSource,
                 indication = ripple(bounded = true, color = OceanBlue600),
-                 onClick = onClick
+                onClick = onClick
             ),
         contentAlignment = Alignment.Center
     ) {
@@ -362,49 +369,49 @@ fun LiquidIconButton(
 
 @Composable
 private fun TotalBalanceSummaryCard(total: Double) {
-    Surface(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 92.dp),
-        shape = RoundedCornerShape(6.dp),
-        color = LuminousSurfaceContainerLowest,
-        border = BorderStroke(1.dp, LuminousOutlineVariant.copy(alpha = 0.32f)),
-        shadowElevation = 2.dp
+            .clip(RoundedCornerShape(CARD_RADIUS))
+            .background(
+                Brush.linearGradient(
+                    colors = listOf(OceanBlue600, OceanBlue400)
+                )
+            )
+            .padding(horizontal = 22.dp, vertical = 20.dp)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 18.dp, vertical = 16.dp),
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
                     text = "Tổng số dư",
-                    color = LuminousOnSurfaceVariant,
+                    color = Color.White.copy(alpha = 0.8f),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
                     text = formatWalletAmount(total),
-                    color = LuminousOnSurface,
-                    fontSize = 24.sp,
+                    color = Color.White,
+                    fontSize = 26.sp,
                     fontWeight = FontWeight.Black
                 )
             }
 
             Box(
                 modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(OceanBlue50),
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color.White.copy(alpha = 0.18f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Outlined.AccountBalanceWallet,
                     contentDescription = null,
-                    tint = OceanBlue600,
-                    modifier = Modifier.size(20.dp)
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
                 )
             }
         }
@@ -426,8 +433,8 @@ private fun WalletDetailItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 58.dp)
-                .padding(horizontal = 18.dp, vertical = 12.dp),
+                .heightIn(min = 62.dp)
+                .padding(horizontal = 20.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
@@ -446,13 +453,13 @@ private fun WalletDetailItem(
                 )
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(14.dp))
 
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(
                     text = wallet.name,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
                     color = if (isArchived) LuminousOnSurfaceVariant else LuminousOnSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -465,20 +472,28 @@ private fun WalletDetailItem(
                         color = LuminousOnSurfaceVariant
                     )
                 } else if (wallet.isDefault) {
-                    Text(
-                        text = "Mặc định",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = OceanBlue600
-                    )
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(OceanBlue50)
+                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "Mặc định",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = OceanBlue600
+                        )
+                    }
                 }
             }
 
             if (isArchived) {
                 TextButton(
                     onClick = onUnarchive,
-                    shape = RoundedCornerShape(6.dp),
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                    shape = RoundedCornerShape(20.dp),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                    colors = ButtonDefaults.textButtonColors(contentColor = OceanBlue600)
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Unarchive,
@@ -497,7 +512,7 @@ private fun WalletDetailItem(
             } else {
                 Text(
                     text = formatWalletAmount(wallet.balance),
-                    fontSize = 16.sp,
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.Black,
                     color = LuminousOnSurface,
                     textAlign = TextAlign.End,

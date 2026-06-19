@@ -271,7 +271,7 @@ fun WalletEditorScreen(
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        containerColor = HomeBackgroundMid,
+        containerColor = LuminousBackground,
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
@@ -292,8 +292,8 @@ fun WalletEditorScreen(
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = LuminousSurfaceContainerLowest,
-                    scrolledContainerColor = LuminousSurfaceContainerLowest
+                    containerColor = LuminousBackground,
+                    scrolledContainerColor = LuminousBackground
                 )
             )
         },
@@ -301,28 +301,29 @@ fun WalletEditorScreen(
             if (selectedAddKind != null) {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    color = LuminousSurfaceContainerLowest,
-                    shadowElevation = 8.dp
+                    color = LuminousBackground,
+                    shadowElevation = 0.dp
                 ) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .navigationBarsPadding()
                             .imePadding()
-                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                            .padding(horizontal = 20.dp, vertical = 16.dp)
                     ) {
                         Button(
                             onClick = submitWallet,
                             enabled = canSubmit,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(52.dp),
-                            shape = RoundedCornerShape(6.dp),
+                                .height(54.dp),
+                            shape = RoundedCornerShape(50),
                             colors = ButtonDefaults.buttonColors(containerColor = OceanBlue600)
                         ) {
                             Text(
                                 text = "Thêm ví",
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp
                             )
                         }
                     }
@@ -368,7 +369,7 @@ fun WalletEditorScreen(
                     placeholder = when (activeType) {
                         WalletType.CREDIT_CARD -> "Thẻ tín dụng"
                         WalletType.SAVINGS -> "Quỹ tiết kiệm"
-                        else -> "Tiền mặt, Vietcombank..."
+                        else -> "Tên ví"
                     }
                 )
 
@@ -459,13 +460,6 @@ fun WalletEditorScreen(
                     }
                 }
 
-                WalletTextField(
-                    label = "Tiền tệ",
-                    value = currency,
-                    onValueChange = { currency = it.uppercase().take(10) },
-                    placeholder = "VND"
-                )
-
                 if (selectedAddKind == WalletAddKind.Basic) {
                     DefaultWalletToggle(
                         checked = isDefault,
@@ -487,9 +481,9 @@ private enum class WalletAddKind(
     val color: Color,
     val icon: ImageVector
 ) {
-    Basic("Ví cơ bản", WalletType.CASH, Color(0xFF2FBF5A), Icons.Outlined.Payments),
-    Credit("Ví tín dụng", WalletType.CREDIT_CARD, Color(0xFFE84E9B), Icons.Outlined.CreditCard),
-    Savings("Ví tiết kiệm", WalletType.SAVINGS, Color(0xFFFF5A57), Icons.Outlined.Savings);
+    Basic("Ví cơ bản", WalletType.CASH, Color(0xFF3B82F6), Icons.Outlined.Payments),
+    Credit("Ví tín dụng", WalletType.CREDIT_CARD, Color(0xFF8B5CF6), Icons.Outlined.CreditCard),
+    Savings("Ví tiết kiệm", WalletType.SAVINGS, Color(0xFF22C55E), Icons.Outlined.Savings);
 
     companion object {
         fun fromWalletType(type: WalletType): WalletAddKind = when (type) {
@@ -556,14 +550,21 @@ private fun WalletAddKindCard(
     Box(
         modifier = modifier
             .height(150.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(kind.color)
+            .clip(RoundedCornerShape(24.dp))
+            .background(
+                brush = androidx.compose.ui.graphics.Brush.linearGradient(
+                    colors = listOf(
+                        kind.color,
+                        kind.color.copy(alpha = 0.78f)
+                    )
+                )
+            )
             .clickable(onClick = onClick)
-            .padding(16.dp)
+            .padding(18.dp)
     ) {
         Text(
             text = kind.title,
-            fontSize = 22.sp,
+            fontSize = 20.sp,
             fontWeight = FontWeight.Black,
             color = Color.White,
             lineHeight = 26.sp,
@@ -572,9 +573,9 @@ private fun WalletAddKindCard(
         Icon(
             imageVector = kind.icon,
             contentDescription = null,
-            tint = Color.White.copy(alpha = 0.24f),
+            tint = Color.White.copy(alpha = 0.20f),
             modifier = Modifier
-                .size(92.dp)
+                .size(88.dp)
                 .align(Alignment.BottomEnd)
         )
     }
@@ -598,9 +599,9 @@ private fun WalletDateField(
                 .fillMaxWidth()
                 .heightIn(min = 56.dp)
                 .clickable(onClick = onClick),
-            shape = RoundedCornerShape(6.dp),
+            shape = RoundedCornerShape(16.dp),
             color = LuminousSurfaceContainerLowest,
-            border = BorderStroke(1.dp, LuminousOutlineVariant)
+            border = BorderStroke(1.dp, LuminousSurfaceContainerHigh)
         ) {
             Row(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
@@ -635,9 +636,9 @@ private fun SavingsGoalProgress(
     val progress = (balance / target).toFloat().coerceIn(0f, 1f)
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(6.dp),
+        shape = RoundedCornerShape(20.dp),
         color = LuminousSurfaceContainerLowest,
-        border = BorderStroke(1.dp, LuminousOutlineVariant.copy(alpha = 0.32f))
+        shadowElevation = 2.dp
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -766,7 +767,7 @@ private fun EditWalletFlow(
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        containerColor = HomeBackgroundMid,
+        containerColor = LuminousBackground,
         topBar = {
             WalletEditTopBar(
                 title = title,
@@ -845,7 +846,7 @@ private fun WalletEditTopBar(
     onLeftClick: () -> Unit,
     onRightClick: () -> Unit
 ) {
-    Surface(color = HomeBackgroundMid) {
+    Surface(color = LuminousBackground) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -986,16 +987,16 @@ private fun WalletAdjustBalanceScreen(
     ) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(6.dp),
+            shape = RoundedCornerShape(20.dp),
             color = LuminousSurfaceContainerLowest,
-            border = BorderStroke(1.dp, LuminousOutlineVariant.copy(alpha = 0.32f)),
-            shadowElevation = 1.dp
+            shadowElevation = 2.dp
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 WalletNameRow(wallet = wallet, name = name, onNameChange = onNameChange)
                 HorizontalDivider(
-                    modifier = Modifier.padding(start = 72.dp),
-                    color = LuminousOutlineVariant.copy(alpha = 0.6f)
+                    modifier = Modifier.padding(start = 72.dp, end = 20.dp),
+                    thickness = 0.5.dp,
+                    color = LuminousSurfaceContainerLow
                 )
                 WalletAmountEditRow(
                     label = "Nhập số dư hiện tại của ví",
@@ -1039,10 +1040,9 @@ private fun WalletTransferScreen(
     ) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(6.dp),
+            shape = RoundedCornerShape(20.dp),
             color = LuminousSurfaceContainerLowest,
-            border = BorderStroke(1.dp, LuminousOutlineVariant.copy(alpha = 0.32f)),
-            shadowElevation = 1.dp
+            shadowElevation = 2.dp
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 WalletActionRow(
@@ -1067,8 +1067,9 @@ private fun WalletTransferScreen(
                     }
                 }
                 HorizontalDivider(
-                    modifier = Modifier.padding(start = 18.dp),
-                    color = LuminousOutlineVariant.copy(alpha = 0.6f)
+                    modifier = Modifier.padding(start = 20.dp, end = 20.dp),
+                    thickness = 0.5.dp,
+                    color = LuminousSurfaceContainerLow
                 )
                 WalletAmountEditRow(
                     label = "Số tiền chuyển",
@@ -1101,10 +1102,9 @@ private fun WalletEditPrimaryCard(
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(6.dp),
+        shape = RoundedCornerShape(20.dp),
         color = LuminousSurfaceContainerLowest,
-        border = BorderStroke(1.dp, LuminousOutlineVariant.copy(alpha = 0.32f)),
-        shadowElevation = 1.dp
+        shadowElevation = 2.dp
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             WalletNameRow(
@@ -1114,13 +1114,21 @@ private fun WalletEditPrimaryCard(
                 onNameChange = onNameChange,
                 onIconClick = onIconClick
             )
-            HorizontalDivider(color = LuminousOutlineVariant.copy(alpha = 0.6f))
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 20.dp),
+                thickness = 0.5.dp,
+                color = LuminousSurfaceContainerLow
+            )
             WalletInfoRow(
                 title = "Việt Nam Đồng",
                 value = wallet.currency,
                 onClick = {}
             )
-            HorizontalDivider(modifier = Modifier.padding(start = 72.dp), color = LuminousOutlineVariant.copy(alpha = 0.6f))
+            HorizontalDivider(
+                modifier = Modifier.padding(start = 72.dp, end = 20.dp),
+                thickness = 0.5.dp,
+                color = LuminousSurfaceContainerLow
+            )
             WalletInfoRow(
                 title = "Nhập số dư hiện tại của ví",
                 value = "${balanceText.ifBlank { "0" }} đ",
@@ -1301,10 +1309,10 @@ private fun WalletToggleBlock(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 56.dp)
-                .clip(RoundedCornerShape(6.dp))
+                .clip(RoundedCornerShape(20.dp))
                 .background(LuminousSurfaceContainerLowest)
                 .clickable(enabled = enabled) { onCheckedChange(!checked) }
-                .padding(horizontal = 18.dp, vertical = 8.dp),
+                .padding(horizontal = 20.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -1346,12 +1354,12 @@ private fun WalletActionGroup(
     onArchive: () -> Unit,
     archiveEnabled: Boolean = true
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(22.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(6.dp),
+            shape = RoundedCornerShape(20.dp),
             color = LuminousSurfaceContainerLowest,
-            border = BorderStroke(1.dp, LuminousOutlineVariant.copy(alpha = 0.32f))
+            shadowElevation = 2.dp
         ) {
             Column {
                 WalletActionRow(
@@ -1360,7 +1368,11 @@ private fun WalletActionGroup(
                     tint = OceanBlue600,
                     onClick = onOpenTransfer
                 )
-                HorizontalDivider(color = LuminousOutlineVariant.copy(alpha = 0.6f))
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 20.dp),
+                    thickness = 0.5.dp,
+                    color = LuminousSurfaceContainerLow
+                )
                 WalletActionRow(
                     title = "Điều chỉnh số dư",
                     value = null,
@@ -1371,9 +1383,9 @@ private fun WalletActionGroup(
         }
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(6.dp),
+            shape = RoundedCornerShape(20.dp),
             color = LuminousSurfaceContainerLowest,
-            border = BorderStroke(1.dp, LuminousOutlineVariant.copy(alpha = 0.32f))
+            shadowElevation = 2.dp
         ) {
             WalletActionRow(
                 title = "Lưu trữ",
@@ -1447,9 +1459,9 @@ private fun WalletEditorPreview(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(6.dp))
+            .clip(RoundedCornerShape(20.dp))
             .background(LuminousSurfaceContainerLowest)
-            .padding(16.dp)
+            .padding(18.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -1526,10 +1538,10 @@ private fun WalletTypePicker(
                     Column(
                         modifier = Modifier
                             .weight(1f)
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(if (isSelected) WalletIconMap.backgroundFor(option.type) else LuminousSurfaceContainerLow)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(if (isSelected) WalletIconMap.backgroundFor(option.type) else LuminousSurfaceContainerLowest)
                             .clickable { onSelect(option.type) }
-                            .padding(vertical = 10.dp),
+                            .padding(vertical = 12.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
@@ -1586,8 +1598,8 @@ private fun WalletIconPicker(
                         modifier = Modifier
                             .weight(1f)
                             .aspectRatio(1f)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(if (isSelected) WalletIconMap.backgroundFor(type) else LuminousSurfaceContainerLow)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(if (isSelected) WalletIconMap.backgroundFor(type) else LuminousSurfaceContainerLowest)
                             .clickable { onSelect(option.key) }
                             .padding(8.dp),
                         contentAlignment = Alignment.Center
@@ -1647,10 +1659,10 @@ private fun WalletTextField(
                 trailingIcon = suffix?.let {
                     { Text(it, color = LuminousOnSurfaceVariant, fontWeight = FontWeight.Bold) }
                 },
-                shape = RoundedCornerShape(6.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = OceanBlue600,
-                    unfocusedBorderColor = LuminousOutlineVariant,
+                    unfocusedBorderColor = LuminousSurfaceContainerHigh,
                     focusedContainerColor = LuminousSurfaceContainerLowest,
                     unfocusedContainerColor = LuminousSurfaceContainerLowest
                 )
@@ -1698,14 +1710,9 @@ private fun DefaultWalletToggle(
                 .fillMaxWidth()
                 .heightIn(min = 58.dp)
                 .clickable(enabled = enabled) { onCheckedChange(!checked) },
-            shape = RoundedCornerShape(6.dp),
-            color = LuminousSurfaceContainerLowest,
-            border = BorderStroke(
-                width = 1.dp,
-                color = if (checked) OceanBlue600.copy(alpha = 0.22f)
-                else LuminousOutlineVariant.copy(alpha = 0.32f)
-            ),
-            shadowElevation = 1.dp
+            shape = RoundedCornerShape(20.dp),
+            color = if (checked) OceanBlue50 else LuminousSurfaceContainerLowest,
+            shadowElevation = 2.dp
         ) {
             Row(
                 modifier = Modifier

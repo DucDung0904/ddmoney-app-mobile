@@ -26,20 +26,6 @@ import androidx.compose.ui.unit.sp
 import com.dung.ddmoney.ui.theme.*
 import com.dung.ddmoney.ui.components.formatMoneyDisplay
 
-/**
- * HomeHeroSection
- *
- * ┌─────────────────────────────────────────────┐
- * │  [Navy→Blue gradient — edge-to-edge]         │
- * │  ┌─ search pill ─────────────────── 🔔 ─┐  │
- * │  └──────────────────────────────────────┘  │
- * │                                             │
- * │  ┌─── floating balance card (3/4 overlap) ┐  │
- * │  │  Tổng số dư   2.000.000 đ  👁          │  │
- * │  └────────────────────────────────────────┘  │
- * └─────────────────────────────────────────────┘
- * [LuminousBackground continues below]
- */
 @Composable
 internal fun HomeHeroSection(
     name: String,

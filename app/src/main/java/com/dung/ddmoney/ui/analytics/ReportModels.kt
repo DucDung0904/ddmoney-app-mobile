@@ -51,15 +51,21 @@ data class ExpenseReport(
         val categoryBreakdowns: List<CategoryExpenseGroup> =
                 topCategories.map { CategoryExpenseGroup(parent = it, children = emptyList()) }
 ) {
+    val hasCurrentPeriodData: Boolean
+        get() = transactionCount > 0 || currentTotal > 0.0
+
     val hasPreviousPeriodData: Boolean
         get() = previousTransactionCount > 0 || previousTotal > 0.0
+
+    val hasComparisonContext: Boolean
+        get() = hasCurrentPeriodData || hasPreviousPeriodData
 
     val difference: Double
         get() = currentTotal - previousTotal
 
     val differencePercentage: Float
         get() =
-                if (previousTotal > 0.0) {
+                if (hasCurrentPeriodData && previousTotal > 0.0) {
                     ((difference / previousTotal) * 100.0).toFloat()
                 } else {
                     0f
@@ -265,6 +271,24 @@ fun formatPercentageChange(percentage: Float): String {
             }
 
     return "$sign$magnitudeText%"
+}
+
+fun spendingDeltaAmountText(report: ExpenseReport): String {
+    return if (report.hasPreviousPeriodData) {
+        formatVnd(abs(report.difference))
+    } else {
+        "Chưa có"
+    }
+}
+
+fun spendingDeltaContextLabel(report: ExpenseReport): String {
+    val previousLabel = report.previousLabel.lowercase()
+    return when {
+        !report.hasPreviousPeriodData -> "dữ liệu $previousLabel"
+        report.difference > 0.0 -> "nhiều hơn $previousLabel"
+        report.difference < 0.0 -> "ít hơn $previousLabel"
+        else -> "bằng $previousLabel"
+    }
 }
 
 fun comparisonChartAxisMax(vararg amounts: Double): Double {

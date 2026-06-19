@@ -6,18 +6,18 @@ import com.dung.ddmoney.local.SyncStatus
 
 @Entity(tableName = "wallets")
 data class WalletEntity(
-    @PrimaryKey val id: String,         // UUID local
-    val serverId: Long? = null,         // ID từ MySQL
+    @PrimaryKey val id: String,        
+    val serverId: Long? = null,       
     val userId: Long? = null,
     val name: String,
     val balance: Double,
-    val type: String,                   // WalletType.name
+    val type: String,                   
     val bankName: String? = null,
     val cardNumber: String? = null,
     val icon: String = "",
     val currency: String = "VND",
     val isDefault: Boolean = false,
-    val isActive: Boolean = true,       // backward compat
+    val isActive: Boolean = true,      
     val isArchived: Boolean = false,
     val isIncludedInTotal: Boolean = true,
     val sortOrder: Int = 0,

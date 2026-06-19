@@ -122,7 +122,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         tokenManager.setOnboardingDone(true)
         _currency.value = currency
         _isOnboardingDone.value = true
-        // Create the first wallet via API
         viewModelScope.launch {
             val req =
                     WalletRequest(
@@ -134,16 +133,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                             currency = currency,
                             isDefault = true
                     )
-            walletRepo.create(req).onFailure { e ->
+            walletRepo.createOfflineFirst(getApplication(), req).onFailure { e ->
                 _error.value = "Không thể tạo ví: ${e.message}"
             }
         }
     }
 
-    /**
-     * Kết hợp 3 Flow từ Room — tự động cập nhật khi DB thay đổi. Khi offline, Room vẫn phát dữ liệu
-     * cached.
-     */
+
     val state: StateFlow<AppState> =
             combine(
                             walletRepo.observeActive(),
@@ -382,10 +378,16 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             _isLoading.value = true
             _error.value = null
             try {
-                budgetRepo.createBudget(0L, name, amount, period, walletId, categoryIds)
-                syncAll()
-            } catch (e: retrofit2.HttpException) {
-                _error.value = readServerError(e, "Không thể tạo ngân sách")
+                budgetRepo.createBudget(
+                    context = getApplication(),
+                    userId = _currentUserId.value,
+                    name = name,
+                    amount = amount,
+                    period = period,
+                    walletId = walletId,
+                    categoryIds = categoryIds
+                )
+                // Worker sẽ tự đẩy lên server khi có mạng
             } catch (e: Exception) {
                 _error.value = "Không thể tạo ngân sách: ${e.message}"
             } finally {
@@ -407,17 +409,15 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             _error.value = null
             try {
                 budgetRepo.updateBudget(
-                        budgetId,
-                        0L,
-                        name,
-                        amount,
-                        period,
-                        walletId,
-                        categoryIds
+                    context = getApplication(),
+                    budgetId = budgetId,
+                    userId = _currentUserId.value,
+                    name = name,
+                    amount = amount,
+                    period = period,
+                    walletId = walletId,
+                    categoryIds = categoryIds
                 )
-                syncAll()
-            } catch (e: retrofit2.HttpException) {
-                _error.value = readServerError(e, "Không thể cập nhật ngân sách")
             } catch (e: Exception) {
                 _error.value = "Không thể cập nhật ngân sách: ${e.message}"
             } finally {
@@ -431,8 +431,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             _isLoading.value = true
             _error.value = null
             try {
-                budgetRepo.deleteBudget(budgetId)
-                syncAll()
+                budgetRepo.deleteBudget(getApplication(), budgetId)
             } catch (e: Exception) {
                 _error.value = "Không thể xóa ngân sách: ${e.message}"
             } finally {
@@ -518,15 +517,15 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // ── Wallet Actions ──────────────────────────────────────────────────
+    // ── Wallet Actions ──────────────────────────────────────────────
     fun createWallet(req: WalletRequest, onComplete: () -> Unit = {}) {
         viewModelScope.launch {
             _isLoading.value = true
             walletRepo
-                    .create(req)
+                    .createOfflineFirst(getApplication(), req)
                     .onSuccess {
                         onComplete()
-                        syncAll()
+                        // Worker sẽ tự đẩy lên server khi có mạng
                     }
                     .onFailure { e -> _error.value = "Không thể tạo ví: ${e.message}" }
             _isLoading.value = false
@@ -534,18 +533,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun updateWallet(walletId: String, req: WalletRequest, onComplete: () -> Unit = {}) {
-        val serverId = walletId.toLongOrNull()
-        if (serverId == null) {
-            _error.value = "Không thể cập nhật ví chưa đồng bộ"
-            return
-        }
         viewModelScope.launch {
             _isLoading.value = true
             walletRepo
-                    .update(serverId, req)
+                    .updateOfflineFirst(getApplication(), walletId, req)
                     .onSuccess {
                         onComplete()
-                        syncAll()
+                        // Worker sẽ tự đẩy lên server khi có mạng
                     }
                     .onFailure { e -> _error.value = "Không thể cập nhật ví: ${e.message}" }
             _isLoading.value = false

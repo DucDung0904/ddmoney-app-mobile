@@ -190,9 +190,14 @@ data class BudgetResponse(
     val id: Long,
     val name: String,
     val categories: List<CategoryResponse>,
+    val categoryIds: List<Long>? = null,
+    val amount: Double,
+    @Deprecated("Use amount instead")
     val budgetAmount: Double,
     val spentAmount: Double,
     val remainingAmount: Double,
+    val percentUsed: Float? = null,
+    @Deprecated("Use percentUsed instead")
     val percentage: Float,
     val month: Int,
     val year: Int,

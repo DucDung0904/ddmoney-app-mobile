@@ -14,17 +14,36 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.DDMoney"
         android:usesCleartextTraffic="true">
+
+        <!--
+            SplashActivity: Entry point của ứng dụng.
+            - android:theme: dùng Theme.DDMoney.Splash để kích hoạt Splash Screen API.
+            - android:noHistory: true → không lưu vào back stack,
+              nhấn Back từ MainActivity sẽ KHÔNG quay lại SplashActivity.
+            - exported: true → bắt buộc khi có intent-filter MAIN/LAUNCHER.
+        -->
         <activity
-            android:name=".MainActivity"
+            android:name=".SplashActivity"
             android:exported="true"
-            android:label="@string/app_name"
-            android:theme="@style/Theme.DDMoney">
+            android:noHistory="true"
+            android:theme="@style/Theme.DDMoney.Splash">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!--
+            MainActivity: Màn hình chính sau splash.
+            - Không còn là LAUNCHER → không thể mở trực tiếp từ launcher.
+            - android:exported="false" → chỉ được gọi từ trong app.
+        -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="false"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.DDMoney" />
+
     </application>
 
 </manifest>

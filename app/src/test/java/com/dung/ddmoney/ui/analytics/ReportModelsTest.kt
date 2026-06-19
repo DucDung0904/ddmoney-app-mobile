@@ -50,6 +50,25 @@ class ReportModelsTest {
     }
 
     @Test
+    fun buildExpenseReport_monthUsesFullCalendarMonthAndPreviousMonth() {
+        val today = LocalDate.of(2026, 6, 18)
+        val transactions =
+            listOf(
+                transaction("current-today", 80_000.0, TransactionType.EXPENSE, today),
+                transaction("current-after-today", 120_000.0, TransactionType.EXPENSE, LocalDate.of(2026, 6, 19)),
+                transaction("previous-same-day", 30_000.0, TransactionType.EXPENSE, LocalDate.of(2026, 5, 18)),
+                transaction("previous-after-same-day", 90_000.0, TransactionType.EXPENSE, LocalDate.of(2026, 5, 19))
+            )
+
+        val report = buildExpenseReport(transactions, ReportPeriod.MONTH, today)
+
+        assertEquals(200_000.0, report.currentTotal, 0.0)
+        assertEquals(120_000.0, report.previousTotal, 0.0)
+        assertEquals("Tháng trước", report.previousLabel)
+        assertEquals("Tháng 6/2026", report.rangeLabel)
+    }
+
+    @Test
     fun reportPreviousDataFlag_usesCountOrAmount() {
         val noPrevious =
             ExpenseReport(
@@ -67,6 +86,27 @@ class ReportModelsTest {
 
         assertFalse(noPrevious.hasPreviousPeriodData)
         assertTrue(withPrevious.hasPreviousPeriodData)
+    }
+
+    @Test
+    fun reportCurrentDataFlag_preventsEmptyCurrentPeriodFromShowingNegativeHundredPercent() {
+        val report =
+            ExpenseReport(
+                period = ReportPeriod.WEEK,
+                currentTotal = 0.0,
+                previousTotal = 20_000.0,
+                transactionCount = 0,
+                previousTransactionCount = 1,
+                currentLabel = "",
+                previousLabel = "",
+                rangeLabel = "",
+                summaryLabel = "",
+                topCategories = emptyList()
+            )
+
+        assertFalse(report.hasCurrentPeriodData)
+        assertEquals(0f, report.differencePercentage, 0.0f)
+        assertEquals("0%", formatPercentageChange(report.differencePercentage))
     }
 
     @Test

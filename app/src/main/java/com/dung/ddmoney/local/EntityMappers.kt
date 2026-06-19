@@ -3,6 +3,9 @@ package com.dung.ddmoney.local
 import com.dung.ddmoney.local.entity.CategoryEntity
 import com.dung.ddmoney.local.entity.TransactionEntity
 import com.dung.ddmoney.local.entity.WalletEntity
+import com.dung.ddmoney.local.entity.BudgetEntity
+import com.dung.ddmoney.local.entity.BudgetCategoryEntity
+import com.dung.ddmoney.network.dto.BudgetResponse
 import com.dung.ddmoney.network.dto.CategoryResponse
 import com.dung.ddmoney.network.dto.TransactionResponse
 import com.dung.ddmoney.network.dto.WalletResponse
@@ -138,3 +141,33 @@ fun TransactionEntity.toModel(): Transaction = Transaction(
     }.getOrDefault(LocalDate.now()),
     note = note ?: ""
 )
+
+// ─── BudgetResponse → BudgetEntity ───────────────────────────────────────
+fun BudgetResponse.toEntity(
+    localId: String? = null,
+    userId: Long = 0L
+): BudgetEntity {
+    val resolvedId = localId ?: id.toString()
+    return BudgetEntity(
+        id = resolvedId,
+        serverId = id,
+        userId = userId,
+        name = name,
+        amount = amount,
+        month = month,
+        year = year,
+        periodType = periodType ?: "MONTH",
+        startDate = startDate,
+        endDate = endDate,
+        walletId = walletId,
+        syncStatus = SyncStatus.SYNCED,
+        updatedAt = System.currentTimeMillis()
+    )
+}
+
+/** Trích xuất danh sách BudgetCategoryEntity từ BudgetResponse */
+fun BudgetResponse.extractCategories(budgetId: String): List<BudgetCategoryEntity> {
+    val fromCategoryIds = categoryIds?.map { BudgetCategoryEntity(budgetId, it) }
+    if (!fromCategoryIds.isNullOrEmpty()) return fromCategoryIds
+    return categories.map { BudgetCategoryEntity(budgetId, it.id) }
+}

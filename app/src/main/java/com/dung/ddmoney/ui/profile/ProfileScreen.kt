@@ -92,10 +92,12 @@ fun ProfileScreen(
                             iconColor = OceanBlue600,
                             title = "Chế độ tối",
                             subtitle = "Tiết kiệm pin và bảo vệ mắt",
+                            isSoon = true,
                             trailing = {
                                 Switch(
                                     checked = darkMode,
-                                    onCheckedChange = { darkMode = it },
+                                    onCheckedChange = {},
+                                    enabled = false,
                                     colors = SwitchDefaults.colors(
                                         checkedThumbColor = Color.White,
                                         checkedTrackColor = OceanBlue600
@@ -109,6 +111,7 @@ fun ProfileScreen(
                             iconColor = OceanBlue600,
                             title = "Lựa chọn tiền tệ",
                             subtitle = "VNĐ (₫)",
+                            isSoon = true,
                             trailing = { Icon(Icons.AutoMirrored.Outlined.NavigateNext, null, tint = NeutralGray400) }
                         )
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), thickness = 0.5.dp, color = LuminousSurfaceContainerLow)
@@ -117,6 +120,7 @@ fun ProfileScreen(
                             iconColor = OceanBlue600,
                             title = "Ngôn ngữ",
                             subtitle = "Tiếng Việt",
+                            isSoon = true,
                             trailing = { Icon(Icons.AutoMirrored.Outlined.NavigateNext, null, tint = NeutralGray400) }
                         )
                     }
@@ -139,6 +143,7 @@ fun ProfileScreen(
                             iconColor = OceanBlue600,
                             title = "Bảo mật",
                             subtitle = "Mật khẩu & Face ID",
+                            isSoon = true,
                             trailing = { Icon(Icons.AutoMirrored.Outlined.NavigateNext, null, tint = NeutralGray400) }
                         )
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), thickness = 0.5.dp, color = LuminousSurfaceContainerLow)
@@ -147,6 +152,7 @@ fun ProfileScreen(
                             iconColor = OceanBlue600,
                             title = "Xuất dữ liệu",
                             subtitle = "CSV, PDF",
+                            isSoon = true,
                             trailing = { Icon(Icons.Outlined.FileDownload, null, modifier = Modifier.size(20.dp), tint = NeutralGray400) }
                         )
                     }
@@ -316,13 +322,18 @@ private fun SettingItem(
     iconColor: Color,
     title: String,
     subtitle: String? = null,
+    isSoon: Boolean = false,
     trailing: @Composable (() -> Unit)? = null,
     onClick: () -> Unit = {}
 ) {
+    val contentAlpha = if (isSoon) 0.45f else 1f
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() }
+            .then(
+                if (isSoon) Modifier
+                else Modifier.clickable { onClick() }
+            )
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -331,36 +342,54 @@ private fun SettingItem(
             modifier = Modifier
                 .size(44.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(iconColor.copy(alpha = 0.1f)),
+                .background(iconColor.copy(alpha = 0.08f)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
                 modifier = Modifier.size(24.dp),
-                tint = iconColor
+                tint = iconColor.copy(alpha = contentAlpha)
             )
         }
 
         Spacer(modifier = Modifier.width(16.dp))
 
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                color = LuminousOnSurface
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = title,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = LuminousOnSurface.copy(alpha = contentAlpha)
+                )
+                if (isSoon) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(Color(0xFFFF8C00).copy(alpha = 0.15f))
+                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "Sắp ra mắt",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFFF8C00)
+                        )
+                    }
+                }
+            }
             if (subtitle != null) {
                 Text(
                     text = subtitle,
                     fontSize = 12.sp,
-                    color = NeutralGray600
+                    color = NeutralGray600.copy(alpha = contentAlpha)
                 )
             }
         }
 
-        if (trailing != null) {
+        if (trailing != null && !isSoon) {
             trailing()
         }
     }

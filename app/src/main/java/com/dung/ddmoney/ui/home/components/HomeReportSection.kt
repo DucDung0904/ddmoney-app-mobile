@@ -46,8 +46,9 @@ import com.dung.ddmoney.ui.analytics.buildExpenseReport
 import com.dung.ddmoney.ui.analytics.comparisonChartAxisMax
 import com.dung.ddmoney.ui.analytics.comparisonChartVisualRatio
 import com.dung.ddmoney.ui.analytics.compactMoney
-import com.dung.ddmoney.ui.analytics.formatPercentageChange
 import com.dung.ddmoney.ui.analytics.formatVnd
+import com.dung.ddmoney.ui.analytics.spendingDeltaAmountText
+import com.dung.ddmoney.ui.analytics.spendingDeltaContextLabel
 import com.dung.ddmoney.ui.components.CategoryIcon
 import com.dung.ddmoney.ui.dashboard.model.Category
 import com.dung.ddmoney.ui.dashboard.model.Transaction
@@ -158,38 +159,45 @@ fun HomeReportSection(
                         )
                     }
 
-                    SpendingDeltaBadge(report = report)
+                    if (report.hasComparisonContext) {
+                        SpendingDeltaBadge(report = report)
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(20.dp))
+                if (report.hasCurrentPeriodData) {
+                    Spacer(modifier = Modifier.height(20.dp))
 
-                // ── Comparison Chart ──────────────────────────────────────────
-                ComparisonBarChart(
-                    previousAmount = report.previousTotal,
-                    currentAmount = report.currentTotal,
-                    previousLabel = report.previousLabel,
-                    currentLabel = report.currentLabel,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(216.dp)
-                )
-
-                Spacer(modifier = Modifier.height(32.dp))
-
-                // ── Top Categories List ───────────────────────────────────────
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        text       = "Chi tiêu nhiều nhất",
-                        fontSize   = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color      = LuminousOnSurface,
-                        modifier   = Modifier.padding(bottom = 12.dp)
+                    // ── Comparison Chart ──────────────────────────────────────
+                    ComparisonBarChart(
+                        previousAmount = report.previousTotal,
+                        currentAmount = report.currentTotal,
+                        previousLabel = report.previousLabel,
+                        currentLabel = report.currentLabel,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(216.dp)
                     )
 
-                    TopCategoriesPreview(
-                        categories = report.topCategories.take(3),
-                        onClick = { showBreakdown = true }
-                    )
+                    Spacer(modifier = Modifier.height(32.dp))
+
+                    // ── Top Categories List ───────────────────────────────────
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text       = "Chi tiêu nhiều nhất",
+                            fontSize   = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color      = LuminousOnSurface,
+                            modifier   = Modifier.padding(bottom = 12.dp)
+                        )
+
+                        TopCategoriesPreview(
+                            categories = report.topCategories.take(3),
+                            onClick = { showBreakdown = true }
+                        )
+                    }
+                } else {
+                    Spacer(modifier = Modifier.height(20.dp))
+                    HomeReportEmptyState()
                 }
             }
         }
@@ -523,6 +531,25 @@ private fun TopCategoryItem(
 }
 
 @Composable
+private fun HomeReportEmptyState() {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(LuminousSurfaceContainerLow.copy(alpha = 0.64f))
+            .padding(horizontal = 16.dp, vertical = 18.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "Chưa có chi tiêu trong kỳ này",
+            fontSize = 13.sp,
+            color = NeutralGray600,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+@Composable
 private fun SpendingDeltaBadge(report: com.dung.ddmoney.ui.analytics.ExpenseReport) {
     val difference = report.difference
     val isHigher = difference > 0.0
@@ -541,17 +568,8 @@ private fun SpendingDeltaBadge(report: com.dung.ddmoney.ui.analytics.ExpenseRepo
             isLower -> SavingsTeal50
             else -> NeutralGray50
         }
-    val valueText =
-        when {
-            !report.hasPreviousPeriodData -> "Chưa có"
-            else -> formatPercentageChange(report.differencePercentage)
-        }
-    val label =
-        if (report.hasPreviousPeriodData) {
-            "so với ${report.previousLabel.lowercase()}"
-        } else {
-            "dữ liệu ${report.previousLabel.lowercase()}"
-        }
+    val valueText = spendingDeltaAmountText(report)
+    val label = spendingDeltaContextLabel(report)
 
     Column(
         modifier = Modifier
