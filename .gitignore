@@ -22,11 +22,10 @@ captures/
 .DS_Store
 Thumbs.db
 
-# Agent / AI config
-.agents/
-
 # SQL file
 sql_ddfood.sql
+
+.database/*
 
 # Docs
 docs/
