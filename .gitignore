@@ -2,6 +2,9 @@
 *.iml
 .idea/
 
+.kotlin/
+.vscode/
+
 # Gradle
 .gradle/
 build/
