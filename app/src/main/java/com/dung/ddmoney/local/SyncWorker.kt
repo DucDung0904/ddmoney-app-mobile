@@ -19,7 +19,6 @@ class SyncWorker(appContext: Context, workerParams: WorkerParameters) :
         val db = AppDatabase.getInstance(applicationContext)
         val api = RetrofitClient.instance
 
-        // ── Block 1: Wallet sync ──────────────────────────────────────────
         val pendingWallets = db.walletDao().getPendingWallets()
         for (wallet in pendingWallets) {
             try {
@@ -89,7 +88,6 @@ class SyncWorker(appContext: Context, workerParams: WorkerParameters) :
             }
         }
 
-        // ── Block 2: Transaction sync (giữ nguyên) ────────────────────────
         val pendingTx = db.transactionDao().getPendingTransactions()
         var hasSyncedTransactions = false
 
@@ -123,7 +121,6 @@ class SyncWorker(appContext: Context, workerParams: WorkerParameters) :
             db.walletDao().upsertAll(remoteWallets.map { it.toEntity() })
         }
 
-        // ── Block 3: Budget sync ──────────────────────────────────────────
         val pendingBudgets = db.budgetDao().getPendingBudgets()
         for (budget in pendingBudgets) {
             try {
@@ -131,7 +128,7 @@ class SyncWorker(appContext: Context, workerParams: WorkerParameters) :
                     SyncStatus.PENDING_INSERT -> {
                         val catIds = db.budgetDao().getAllBudgets()
                             .find { it.id == budget.id }
-                            ?.let { /* categories already stored */ Unit }
+                            ?.let { Unit }
                         // Lấy categoryIds từ budget_categories
                         val categoryIds = getBudgetCategoryIds(db, budget.id)
                         val req = budget.toBudgetRequest(categoryIds)

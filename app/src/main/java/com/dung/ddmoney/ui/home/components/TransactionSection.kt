@@ -28,11 +28,13 @@ import com.dung.ddmoney.ui.theme.*
 import com.dung.ddmoney.ui.components.formatMoneyDisplay
 import java.time.format.DateTimeFormatter
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  TransactionSectionHeader
-// ─────────────────────────────────────────────────────────────────────────────
 @Composable
-internal fun TransactionSectionHeader(onSeeAll: () -> Unit) {
+internal fun TransactionSectionHeader(
+    title: String = "Giao dịch gần đây",
+    detail: String? = null,
+    actionText: String = "Tất cả",
+    onSeeAll: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -41,14 +43,24 @@ internal fun TransactionSectionHeader(onSeeAll: () -> Unit) {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment     = Alignment.CenterVertically
     ) {
+        Column {
+            Text(
+                title,
+                fontSize   = 16.sp,
+                fontWeight = FontWeight.Black,
+                color      = LuminousOnSurface
+            )
+            detail?.let {
+                Text(
+                    text = it,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = NeutralGray600
+                )
+            }
+        }
         Text(
-            "Giao dịch gần đây",
-            fontSize   = 16.sp,
-            fontWeight = FontWeight.Black,
-            color      = LuminousOnSurface
-        )
-        Text(
-            "Tất cả",
+            actionText,
             fontSize   = 13.sp,
             fontWeight = FontWeight.Bold,
             color      = OceanBlue600,
@@ -60,9 +72,6 @@ internal fun TransactionSectionHeader(onSeeAll: () -> Unit) {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  TransactionPill  — single transaction row
-// ─────────────────────────────────────────────────────────────────────────────
 @Composable
 internal fun TransactionPill(
     transaction: Transaction,
@@ -307,7 +316,10 @@ private fun transactionTypeLabel(type: TransactionType): String =
 //  EmptyTransactions
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
-internal fun EmptyTransactions() {
+internal fun EmptyTransactions(
+    message: String = "Chưa có giao dịch nào",
+    helperText: String? = null
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -322,10 +334,19 @@ internal fun EmptyTransactions() {
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text       = "Chưa có giao dịch nào",
+            text       = message,
             color      = NeutralGray600,
             fontSize   = 14.sp,
             fontWeight = FontWeight.Medium
         )
+        helperText?.let {
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = it,
+                color = NeutralGray600.copy(alpha = 0.75f),
+                fontSize = 12.sp,
+                textAlign = TextAlign.Center
+            )
+        }
     }
 }

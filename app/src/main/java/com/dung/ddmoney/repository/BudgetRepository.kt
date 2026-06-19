@@ -47,11 +47,7 @@ class BudgetRepository(
     private val transactionDao: TransactionDao,
     private val categoryDao: CategoryDao
 ) {
-    /**
-     * Lấy danh sách ngân sách kèm theo số tiền đã chi tiêu được tính toán từ các giao dịch.
-     * spent_amount = tổng transactions có category_id nằm trong danh sách category của ngân sách đó, 
-     * cùng tháng/năm, và type là expense.
-     */
+
     fun getBudgetsWithCalculatedSpent(): Flow<List<BudgetDisplayModel>> {
         val budgetsFlow = budgetDao.getBudgetsWithCategories()
         val transactionsFlow = transactionDao.observeAll()
@@ -167,8 +163,8 @@ class BudgetRepository(
 
     /**
      * Tạo budget mới theo kiểu offline-first:
-     * 1. Ghi local với UUID + PENDING_INSERT
-     * 2. Trigger SyncWorker để đẩy lên server
+     * Ghi local với UUID + PENDING_INSERT
+     * Trigger SyncWorker để đẩy lên server
      */
     suspend fun createBudget(
         context: Context,

@@ -35,7 +35,6 @@ class TransactionRepository(
     fun observeByMonth(month: Int, year: Int): Flow<List<Transaction>> =
         dao.observeByMonth(month, year).map { entities -> entities.map { it.toModel() } }
 
-    /** Sync từ Server về Local (Download) */
     suspend fun sync(month: Int? = null, year: Int? = null): Result<Unit> = safeCall {
         val pendingTransactions =
             if (month == null && year == null) {
@@ -56,7 +55,7 @@ class TransactionRepository(
     /** Tạo mới offline-first: ghi Room trước, sau đó WorkManager tự đẩy lên server khi có mạng. */
     suspend fun create(req: TransactionRequest): Result<Unit> =
         try {
-            createPendingLocal(req)
+            createPendingLocal(req) // Lưu xuống Local Room DB
             SyncWorker.enqueue(context)
             Result.success(Unit)
         } catch (e: Exception) {

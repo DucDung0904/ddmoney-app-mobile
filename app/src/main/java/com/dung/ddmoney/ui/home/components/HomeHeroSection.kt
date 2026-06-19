@@ -1,5 +1,6 @@
 package com.dung.ddmoney.ui.home.components
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
@@ -20,9 +21,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.dung.ddmoney.R
 import com.dung.ddmoney.ui.theme.*
 import com.dung.ddmoney.ui.components.formatMoneyDisplay
 
@@ -31,7 +35,8 @@ internal fun HomeHeroSection(
     name: String,
     balance: Double,
     isVisible: Boolean,
-    onToggle: () -> Unit
+    onToggle: () -> Unit,
+    onSearchClick: () -> Unit
 ) {
     Box(modifier = Modifier.fillMaxWidth()) {
 
@@ -97,8 +102,9 @@ internal fun HomeHeroSection(
         // ── Layer 2: Content column ───────────────────────────────────────────
         Column(modifier = Modifier.fillMaxWidth()) {
 
-            // Search bar pill + bell icon
-            HomeSearchBar()
+            HomeTopBar(
+                onSearchClick = onSearchClick
+            )
 
             // Balance card — floats 3/4 over the gradient
             BalanceSummaryCard(
@@ -112,19 +118,56 @@ internal fun HomeHeroSection(
     }
 }
 
-// ─── Search bar pill ──────────────────────────────────────────────────────────
+// ─── Top app bar: logo + search/notification actions ─────────────────────────
 @Composable
-private fun HomeSearchBar() {
-    Box(
+private fun HomeTopBar(
+    onSearchClick: () -> Unit
+) {
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .statusBarsPadding()
-            .padding(horizontal = 12.dp)
-            .padding(bottom = 12.dp)
-            .height(46.dp)
+            .padding(horizontal = 16.dp)
+            .padding(bottom = 10.dp)
+            .height(56.dp)
+            .padding(top = 2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Image(
+            painter = painterResource(id = R.drawable.logo_appdd),
+            contentDescription = "DDMoney",
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.size(48.dp)
+        )
+
+        Spacer(modifier = Modifier.width(10.dp))
+
+        HomeSearchPill(
+            modifier = Modifier.weight(1f),
+            onClick = onSearchClick
+        )
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        HomeHeaderIconButton(
+            icon = Icons.Outlined.Notifications,
+            contentDescription = "Thông báo",
+            onClick = {}
+        )
+    }
+}
+
+@Composable
+private fun HomeSearchPill(
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .height(44.dp)
             .clip(RoundedCornerShape(50))
             .background(Color(0xFFEAF5FF).copy(alpha = 0.25f))
-            .clickable { }
+            .clickable { onClick() }
     ) {
         Row(
             modifier = Modifier
@@ -140,29 +183,36 @@ private fun HomeSearchBar() {
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text       = "Tìm kiếm giao dịch...",
-                fontSize   = 14.sp,
-                color      = Color.White.copy(alpha = 0.6f),
+                text = "Tìm kiếm giao dịch...",
+                fontSize = 14.sp,
+                color = Color.White.copy(alpha = 0.68f),
                 fontWeight = FontWeight.Medium,
-                modifier   = Modifier.weight(1f)
-            )
-            // Vertical divider
-            Box(
-                modifier = Modifier
-                    .width(1.dp)
-                    .height(22.dp)
-                    .background(Color.White.copy(alpha = 0.25f))
-            )
-            Spacer(modifier = Modifier.width(10.dp))
-            Icon(
-                imageVector    = Icons.Outlined.Notifications,
-                contentDescription = "Thông báo",
-                modifier = Modifier
-                    .size(20.dp)
-                    .clickable { },
-                tint = Color.White
+                modifier = Modifier.weight(1f)
             )
         }
+    }
+}
+
+@Composable
+private fun HomeHeaderIconButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(42.dp)
+            .clip(CircleShape)
+            .background(Color(0xFFEAF5FF).copy(alpha = 0.22f))
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            modifier = Modifier.size(20.dp),
+            tint = Color.White
+        )
     }
 }
 

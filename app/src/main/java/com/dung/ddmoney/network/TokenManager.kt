@@ -52,7 +52,6 @@ class TokenManager(context: Context) {
         val refreshToken = getRefreshToken() ?: return false
         if (refreshToken.isBlank()) return false
 
-        // Refresh tokens can be opaque strings. Only check expiry when it looks like a JWT.
         return refreshToken.split(".").size != 3 || !isTokenExpired(refreshToken)
     }
 
@@ -94,14 +93,12 @@ class TokenManager(context: Context) {
             .apply()
     }
 
-    // ── Onboarding ──────────────────────────────────────────────────
     fun setOnboardingDone(done: Boolean) {
         prefs.edit().putBoolean(KEY_ONBOARDING_DONE, done).apply()
     }
 
     fun isOnboardingDone(): Boolean = prefs.getBoolean(KEY_ONBOARDING_DONE, false)
 
-    // ── Currency ────────────────────────────────────────────────────
     fun setCurrency(currency: String) {
         prefs.edit().putString(KEY_CURRENCY, currency).apply()
     }

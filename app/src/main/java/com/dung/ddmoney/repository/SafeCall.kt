@@ -2,10 +2,6 @@ package com.dung.ddmoney.repository
 
 import retrofit2.HttpException
 
-/**
- * Shared safe-call wrapper for all repository operations.
- * Catches HttpException and general exceptions, returning Result.
- */
 suspend fun <T> safeCall(block: suspend () -> T): Result<T> {
     return try {
         Result.success(block())
