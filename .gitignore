@@ -2,8 +2,8 @@
 *.iml
 .idea/
 
-.kotlin/
-.vscode/
+kotlin/
+vscode/
 
 # Gradle
 .gradle/
@@ -25,7 +25,7 @@ Thumbs.db
 # SQL file
 sql_ddfood.sql
 
-.database/*
+database/
 
 # Docs
 docs/
